@@ -1,6 +1,6 @@
 {
   "name": "utilix",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Utilix — Desktop utilities toolkit for file resize, compression, and more",
   "main": "dist-electron/main.js",
   "scripts": {

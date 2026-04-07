@@ -16,13 +16,24 @@ jobs:
       CSC_IDENTITY_AUTO_DISCOVERY: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Use npm 11
+        run: npm install --global npm@11.6.2
+
+      - name: Verify npm version
+        run: npm --version
 
       - name: Install dependencies
         run: npm ci
