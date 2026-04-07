@@ -1,0 +1,279 @@
+.resize-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--p-text-color);
+
+  i {
+    color: var(--p-primary-color);
+  }
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--p-text-secondary-color);
+}
+
+.resize-layout {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+// Controls Panel
+.controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+// File List
+.file-list {
+  background: color-mix(in srgb, var(--app-panel-bg) 92%, transparent);
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-soft);
+  overflow: hidden;
+}
+
+.file-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.file-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--p-text-secondary-color);
+}
+
+.clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--p-red-500);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+
+  &:hover {
+    background: color-mix(in srgb, var(--p-red-500) 10%, transparent);
+  }
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  border-bottom: 1px solid var(--p-surface-100);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--p-surface-50);
+  }
+
+  &.selected {
+    background: color-mix(in srgb, var(--p-primary-color) 8%, transparent);
+    border-left: 3px solid var(--p-primary-color);
+  }
+
+  &.processing {
+    opacity: 0.7;
+  }
+}
+
+.file-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  color: var(--p-text-secondary-color);
+}
+
+.file-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--p-text-secondary-color);
+
+  &:hover {
+    background: var(--p-surface-200);
+  }
+
+  &.save {
+    color: var(--p-primary-color);
+  }
+
+  &.remove:hover {
+    color: var(--p-red-500);
+    background: color-mix(in srgb, var(--p-red-500) 10%, transparent);
+  }
+}
+
+.status-done {
+  color: var(--p-green-500);
+}
+
+.status-error {
+  color: var(--p-red-500);
+}
+
+// Options Panel
+.options-panel {
+  background: color-mix(in srgb, var(--app-panel-bg) 92%, transparent);
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-soft);
+  padding: 1.25rem;
+  overflow: hidden;
+}
+
+.options-title {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.option-group {
+  margin-bottom: 1rem;
+
+  &.inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.option-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--p-text-secondary-color);
+  margin-bottom: 0.4rem;
+
+  .inline & {
+    margin-bottom: 0;
+  }
+}
+
+.dimensions-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  .dimension-input {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+:host ::ng-deep {
+  .options-panel .p-inputnumber,
+  .options-panel .p-inputnumber-input,
+  .options-panel .p-select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+// Actions
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// Preview Section
+.preview-section {
+  position: sticky;
+  top: 2rem;
+}
+
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 300px;
+  background: color-mix(in srgb, var(--app-panel-bg) 92%, transparent);
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  color: var(--p-surface-400);
+
+  i {
+    font-size: 3rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+// Responsive
+@media (max-width: 900px) {
+  .resize-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-section {
+    position: static;
+  }
+}

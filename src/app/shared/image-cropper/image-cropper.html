@@ -1,0 +1,19 @@
+<div class="cropper-shell">
+    <div class="cropper-toolbar">
+        <span>Drag to draw crop area. Drag inside selection to move.</span>
+        <button type="button" class="reset-btn" (click)="resetSelection()">Reset</button>
+    </div>
+
+    <div class="crop-stage" (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event)" (pointercancel)="onPointerUp($event)">
+        <img [src]="src()" alt="Interactive crop preview" class="crop-image" draggable="false" />
+        <div class="crop-overlay"></div>
+        <div class="crop-selection" [style.left.%]="selection().x * 100" [style.top.%]="selection().y * 100"
+            [style.width.%]="selection().width * 100" [style.height.%]="selection().height * 100">
+            <span class="handle top-left"></span>
+            <span class="handle top-right"></span>
+            <span class="handle bottom-left"></span>
+            <span class="handle bottom-right"></span>
+        </div>
+    </div>
+</div>

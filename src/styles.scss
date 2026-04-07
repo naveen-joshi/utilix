@@ -1,0 +1,88 @@
+@use 'primeicons/primeicons.css';
+@import url('@fontsource-variable/manrope');
+@import url('@fontsource-variable/space-grotesk');
+
+:root {
+  --font-family: 'Manrope Variable', 'Segoe UI Variable', sans-serif;
+  --app-font-display: 'Space Grotesk Variable', 'Manrope Variable', sans-serif;
+  --sidebar-width: 270px;
+
+  --app-main-bg: #f6f8fc;
+  --app-panel-bg: rgba(255, 255, 255, 0.88);
+  --app-border-color: #dce2f0;
+  --app-hover-bg: #eef3ff;
+  --app-shadow-soft: 0 10px 32px rgba(18, 24, 36, 0.08);
+  --app-bg-accent-soft: rgba(70, 132, 255, 0.18);
+  --app-bg-accent-soft-2: rgba(45, 193, 174, 0.12);
+}
+
+html.dark-mode {
+  --app-main-bg: #0f1420;
+  --app-panel-bg: rgba(20, 28, 41, 0.82);
+  --app-border-color: #2b3549;
+  --app-hover-bg: #1a2436;
+  --app-shadow-soft: 0 10px 32px rgba(0, 0, 0, 0.4);
+  --app-bg-accent-soft: rgba(87, 119, 255, 0.22);
+  --app-bg-accent-soft-2: rgba(27, 161, 144, 0.2);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-family);
+  background: var(--app-main-bg);
+  color: var(--p-text-color);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark-mode {
+  color-scheme: dark;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.p-component {
+  font-family: var(--font-family);
+}
+
+.app-name,
+.dashboard-title,
+.page-title {
+  font-family: var(--app-font-display);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--p-primary-color) 35%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--app-main-bg) 80%, #000 20%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--p-surface-400);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--p-surface-500);
+}

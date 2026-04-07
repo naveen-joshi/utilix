@@ -1,0 +1,48 @@
+<div class="layout-wrapper">
+    <aside class="sidebar" [style.width]="sidebarWidth()">
+        <div class="sidebar-header">
+            @if (!sidebarCollapsed()) {
+            <span class="app-logo">
+                <i class="pi pi-bolt"></i>
+                <span class="app-name">Utilix</span>
+            </span>
+            } @else {
+            <span class="app-logo-collapsed">
+                <i class="pi pi-bolt"></i>
+            </span>
+            }
+        </div>
+
+        <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+            @for (item of navItems; track item.route) {
+            <a class="nav-item" [routerLink]="item.route" routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+                [attr.title]="sidebarCollapsed() ? item.label : null" [attr.aria-label]="item.label">
+                <i [class]="item.icon"></i>
+                @if (!sidebarCollapsed()) {
+                <span class="nav-label">{{ item.label }}</span>
+                }
+            </a>
+            }
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="sidebar-btn theme-btn" (click)="toggleThemeMode()"
+                [attr.aria-label]="'Theme: ' + themeLabel() + '. Click to cycle between System, Dark and Light'"
+                [attr.title]="'Theme: ' + themeLabel()">
+                <i [class]="themeIcon()"></i>
+                @if (!sidebarCollapsed()) {
+                <span class="theme-label">{{ themeLabel() }}</span>
+                }
+            </button>
+            <button class="sidebar-btn" (click)="toggleSidebar()"
+                [attr.aria-label]="sidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+                <i [class]="sidebarCollapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></i>
+            </button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <router-outlet />
+    </main>
+</div>

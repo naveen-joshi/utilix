@@ -1,0 +1,157 @@
+<p-toast />
+
+<div class="image-tools-page">
+    <header class="page-header">
+        <h1 class="page-title">
+            <i class="pi pi-images"></i>
+            Image Utility Tools
+        </h1>
+        <p class="page-subtitle">Resize, crop, rotate, convert SVG, generate favicons, and remove simple backgrounds.
+        </p>
+    </header>
+
+    <div class="image-tools-layout">
+        <section class="controls-panel" aria-label="Image tool controls">
+            <app-file-dropzone accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                [multiple]="true" (filesSelected)="onFilesSelected($event)" />
+
+            @if (hasFiles()) {
+            <div class="file-list">
+                <div class="file-list-header">
+                    <span class="file-count">{{ files().length }} image(s)</span>
+                    <button class="clear-btn" (click)="clearAll()">
+                        <i class="pi pi-trash"></i>
+                        Clear
+                    </button>
+                </div>
+
+                @for (file of files(); track $index) {
+                <div class="file-item" [class.selected]="selectedFileIndex() === $index" (click)="selectFile($index)"
+                    (keydown.enter)="selectFile($index)" role="button" tabindex="0"
+                    [attr.aria-label]="'Select ' + file.name">
+                    <div class="file-item-info">
+                        <span class="file-name" [title]="file.name">{{ file.name }}</span>
+                        <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                    </div>
+
+                    <button class="action-icon remove" (click)="removeFile($index); $event.stopPropagation()"
+                        [attr.aria-label]="'Remove ' + file.name" title="Remove">
+                        <i class="pi pi-times"></i>
+                    </button>
+                </div>
+                }
+            </div>
+
+            <div class="options-panel">
+                <div class="option-group">
+                    <label class="option-label">Tool</label>
+                    <p-select [options]="toolOptions" [ngModel]="tool()" (ngModelChange)="onToolChanged($event)"
+                        optionLabel="label" optionValue="value" [style]="{ width: '100%' }" />
+                </div>
+
+                @if (tool() === 'resize') {
+                <div class="grid-two">
+                    <div class="option-group">
+                        <label class="option-label">Width (px)</label>
+                        <p-inputnumber [ngModel]="resizeWidth()" (ngModelChange)="resizeWidth.set($event)" [min]="1"
+                            [max]="12000" [fluid]="true" />
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label">Height (px)</label>
+                        <p-inputnumber [ngModel]="resizeHeight()" (ngModelChange)="resizeHeight.set($event)" [min]="1"
+                            [max]="12000" [fluid]="true" />
+                    </div>
+                </div>
+                }
+
+                @if (tool() === 'crop') {
+                <div class="crop-hint-card">
+                    <p class="crop-hint-title">Interactive Crop</p>
+                    <p class="crop-hint-body">Drag directly on the image preview to place and size the crop area.</p>
+                    @if (cropPixelHint()) {
+                    <p class="crop-hint-coords">{{ cropPixelHint() }}</p>
+                    }
+                </div>
+                }
+
+                @if (tool() === 'rotate') {
+                <div class="option-group">
+                    <label class="option-label">Angle (degrees)</label>
+                    <p-inputnumber [ngModel]="rotateAngle()" (ngModelChange)="rotateAngle.set($event)" [min]="-360"
+                        [max]="360" [fluid]="true" />
+                </div>
+                }
+
+                @if (tool() === 'svg') {
+                <div class="option-group">
+                    <label class="option-label">Target Format</label>
+                    <p-select [options]="svgTargetOptions" [ngModel]="svgTargetFormat()"
+                        (ngModelChange)="svgTargetFormat.set($event)" optionLabel="label" optionValue="value"
+                        [style]="{ width: '100%' }" />
+                </div>
+                }
+
+                @if (tool() === 'favicon') {
+                <div class="option-group">
+                    <label class="option-label">Favicon Sizes (comma-separated)</label>
+                    <input pInputText [ngModel]="faviconSizesInput()" (ngModelChange)="faviconSizesInput.set($event)"
+                        placeholder="16,32,48,64,128,180" />
+                </div>
+                }
+
+                @if (tool() === 'remove-bg') {
+                <div class="option-group">
+                    <label class="option-label">Background Threshold: {{ backgroundThreshold() }}</label>
+                    <p-slider [ngModel]="backgroundThreshold()" (ngModelChange)="backgroundThreshold.set($event)"
+                        [min]="5" [max]="120" />
+                </div>
+                <div class="option-group">
+                    <label class="option-label">Output Format</label>
+                    <p-select [options]="backgroundFormatOptions" [ngModel]="backgroundOutputFormat()"
+                        (ngModelChange)="backgroundOutputFormat.set($event)" optionLabel="label" optionValue="value"
+                        [style]="{ width: '100%' }" />
+                </div>
+                }
+
+                @if (!isSvgTool() && !isFaviconTool()) {
+                <div class="option-group">
+                    <label class="option-label">Output Format</label>
+                    <p-select [options]="formatOptions" [ngModel]="outputFormat()"
+                        (ngModelChange)="outputFormat.set($event)" optionLabel="label" optionValue="value"
+                        [style]="{ width: '100%' }" />
+                </div>
+                <div class="option-group">
+                    <label class="option-label">Quality: {{ quality() }}%</label>
+                    <p-slider [ngModel]="quality()" (ngModelChange)="quality.set($event)" [min]="1" [max]="100" />
+                </div>
+                }
+            </div>
+
+            <div class="actions">
+                <p-button label="Run Tool" icon="pi pi-play" (onClick)="runTool()"
+                    [disabled]="isProcessing() || !hasFiles()" [loading]="isProcessing()" [style]="{ width: '100%' }" />
+                @if (toolResult()) {
+                <p-button label="Save Result" icon="pi pi-download" severity="secondary" (onClick)="saveResult()"
+                    [style]="{ width: '100%' }" />
+                }
+            </div>
+            }
+        </section>
+
+        <section class="preview-section" aria-label="Image preview">
+            @if (selectedFile()) {
+            @if (tool() === 'crop' && originalPreviewSrc()) {
+            <app-image-cropper [src]="originalPreviewSrc()" (selectionChanged)="onCropSelectionChanged($event)" />
+            }
+            <app-preview-panel [originalSrc]="originalPreviewSrc()" [resultSrc]="resultPreviewSrc()"
+                [originalSize]="selectedFile()?.size ?? 0" [resultSize]="resultSize()"
+                [resultDimensions]="resultDimensions()" [resultFormat]="toolResult()?.format ?? ''" />
+            } @else {
+            <div class="preview-empty">
+                <i class="pi pi-image"></i>
+                <p>Select an image file to start using tools.</p>
+            </div>
+            }
+        </section>
+    </div>
+</div>

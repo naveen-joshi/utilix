@@ -1,0 +1,10 @@
+<div class="dropzone" [class.drag-over]="isDragOver()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)" role="button" tabindex="0" aria-label="Drop files here or click to browse"
+    (keydown.enter)="fileInput.click()" (keydown.space)="fileInput.click()" (click)="fileInput.click()">
+    <i class="pi pi-cloud-upload dropzone-icon"></i>
+    <p class="dropzone-text">Drag & drop files here</p>
+    <p class="dropzone-subtext">or click to browse</p>
+
+    <input #fileInput type="file" class="file-input" [accept]="accept()" [multiple]="multiple()"
+        (change)="onFileInput($event)" aria-hidden="true" tabindex="-1" />
+</div>

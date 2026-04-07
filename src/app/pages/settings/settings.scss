@@ -1,0 +1,115 @@
+.settings-page {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--p-text-color);
+
+  i {
+    color: var(--p-primary-color);
+  }
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--p-text-secondary-color);
+}
+
+.settings-card {
+  background: color-mix(in srgb, var(--app-panel-bg) 92%, transparent);
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-soft);
+  padding: 1.25rem;
+}
+
+.state-text {
+  margin: 0;
+  color: var(--p-text-secondary-color);
+}
+
+.setting-block {
+  margin-bottom: 1.05rem;
+
+  &.disabled {
+    opacity: 0.7;
+  }
+}
+
+.setting-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--p-text-secondary-color);
+}
+
+.directory-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
+.browse-btn {
+  border: 1px solid var(--app-border-color);
+  border-radius: 9px;
+  padding: 0 0.9rem;
+  min-height: 42px;
+  background: color-mix(in srgb, var(--app-main-bg) 86%, transparent);
+  color: var(--p-text-color);
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--p-primary-color);
+    color: var(--p-primary-color);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.setting-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--p-text-secondary-color);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:host ::ng-deep {
+  .settings-card .p-select,
+  .settings-card .p-inputtext {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .directory-row {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: stretch;
+
+    .p-button {
+      width: 100%;
+    }
+  }
+}

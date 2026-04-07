@@ -1,0 +1,90 @@
+.cropper-shell {
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-panel-bg) 95%, transparent);
+  box-shadow: var(--app-shadow-soft);
+  overflow: hidden;
+}
+
+.cropper-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--app-border-color);
+  font-size: 0.78rem;
+  color: var(--p-text-secondary-color);
+}
+
+.reset-btn {
+  border: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--p-primary-color) 15%, transparent);
+  color: var(--p-primary-color);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--p-primary-color) 24%, transparent);
+  }
+}
+
+.crop-stage {
+  position: relative;
+  user-select: none;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.crop-image {
+  width: 100%;
+  display: block;
+  max-height: 520px;
+  object-fit: contain;
+}
+
+.crop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+}
+
+.crop-selection {
+  position: absolute;
+  border: 2px solid #5df2c5;
+  background: rgba(93, 242, 197, 0.12);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5df2c5;
+
+  &.top-left {
+    left: -6px;
+    top: -6px;
+  }
+
+  &.top-right {
+    right: -6px;
+    top: -6px;
+  }
+
+  &.bottom-left {
+    left: -6px;
+    bottom: -6px;
+  }
+
+  &.bottom-right {
+    right: -6px;
+    bottom: -6px;
+  }
+}

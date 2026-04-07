@@ -1,0 +1,156 @@
+<p-toast />
+
+<div class="resize-page">
+    <header class="page-header">
+        <h1 class="page-title">
+            <i class="pi pi-arrows-h"></i>
+            File Resize
+        </h1>
+        <p class="page-subtitle">Resize images by dimensions or compress to a target file size</p>
+    </header>
+
+    <div class="resize-layout">
+        <!-- Left: Controls -->
+        <div class="controls-panel">
+            <!-- File Drop Zone -->
+            <app-file-dropzone accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,.pdf" [multiple]="true"
+                (filesSelected)="onFilesSelected($event)" />
+
+            <!-- File List -->
+            @if (hasFiles()) {
+            <div class="file-list">
+                <div class="file-list-header">
+                    <span class="file-count">{{ totalCount() }} file(s)</span>
+                    <button class="clear-btn" (click)="clearAll()">
+                        <i class="pi pi-trash"></i> Clear All
+                    </button>
+                </div>
+                @for (item of files(); track $index) {
+                <div class="file-item" [class.selected]="selectedFileIndex() === $index"
+                    [class.done]="item.status === 'done'" [class.error]="item.status === 'error'"
+                    [class.processing]="item.status === 'processing'" (click)="selectFile($index)" role="button"
+                    tabindex="0" (keydown.enter)="selectFile($index)" [attr.aria-label]="'Select ' + item.file.name">
+                    <div class="file-item-info">
+                        <span class="file-name" [title]="item.file.name">{{ item.file.name }}</span>
+                        <span class="file-size">{{ formatFileSize(item.file.size) }}</span>
+                    </div>
+                    <div class="file-item-actions">
+                        @if (item.status === 'done') {
+                        <button class="action-icon save" (click)="saveResult($index); $event.stopPropagation()"
+                            aria-label="Save result" title="Save result">
+                            <i class="pi pi-download"></i>
+                        </button>
+                        }
+                        @if (item.status === 'processing') {
+                        <i class="pi pi-spin pi-spinner"></i>
+                        }
+                        @if (item.status === 'done') {
+                        <i class="pi pi-check-circle status-done"></i>
+                        }
+                        @if (item.status === 'error') {
+                        <i class="pi pi-times-circle status-error"></i>
+                        }
+                        <button class="action-icon remove" (click)="removeFile($index); $event.stopPropagation()"
+                            aria-label="Remove file" title="Remove">
+                            <i class="pi pi-times"></i>
+                        </button>
+                    </div>
+                </div>
+                }
+            </div>
+
+            <!-- Resize Options -->
+            <div class="options-panel">
+                <h3 class="options-title">Resize Options</h3>
+
+                <!-- Mode Toggle -->
+                @if (!isPdfOnlyMode()) {
+                <div class="option-group">
+                    <label class="option-label">Mode</label>
+                    <p-tabs [value]="resizeMode() === 'dimensions' ? 0 : 1">
+                        <p-tablist>
+                            <p-tab [value]="0" (click)="resizeMode.set('dimensions')">Dimensions</p-tab>
+                            <p-tab [value]="1" (click)="resizeMode.set('filesize')">Target Size</p-tab>
+                        </p-tablist>
+                    </p-tabs>
+                </div>
+                }
+
+                @if (resizeMode() === 'dimensions') {
+                <div class="option-group dimensions-group">
+                    <div class="dimension-input">
+                        <label for="width" class="option-label">Width (px)</label>
+                        <p-inputnumber inputId="width" [ngModel]="targetWidth()"
+                            (ngModelChange)="targetWidth.set($event)" [min]="1" [max]="10000" placeholder="Auto"
+                            [fluid]="true" />
+                    </div>
+                    <div class="dimension-input">
+                        <label for="height" class="option-label">Height (px)</label>
+                        <p-inputnumber inputId="height" [ngModel]="targetHeight()"
+                            (ngModelChange)="targetHeight.set($event)" [min]="1" [max]="10000" placeholder="Auto"
+                            [fluid]="true" />
+                    </div>
+                </div>
+                <div class="option-group inline">
+                    <label class="option-label">Maintain aspect ratio</label>
+                    <p-toggleswitch [ngModel]="maintainAspectRatio()"
+                        (ngModelChange)="maintainAspectRatio.set($event)" />
+                </div>
+                } @else {
+                <div class="option-group">
+                    <label for="targetSize" class="option-label">Target Size (KB)</label>
+                    <p-inputnumber inputId="targetSize" [ngModel]="targetSizeKB()"
+                        (ngModelChange)="targetSizeKB.set($event)" [min]="1" [max]="102400" suffix=" KB"
+                        [fluid]="true" />
+                </div>
+                }
+
+                <!-- Quality -->
+                @if (!isPdfOnlyMode()) {
+                <div class="option-group">
+                    <label class="option-label">Quality: {{ quality() }}%</label>
+                    <p-slider [ngModel]="quality()" (ngModelChange)="quality.set($event)" [min]="1" [max]="100" />
+                </div>
+                }
+
+                <!-- Output Format -->
+                @if (!isPdfOnlyMode()) {
+                <div class="option-group">
+                    <label class="option-label">Output Format</label>
+                    <p-select [options]="formatOptions()" [ngModel]="outputFormat()"
+                        (ngModelChange)="outputFormat.set($event)" optionLabel="label" optionValue="value"
+                        [style]="{ width: '100%' }" />
+                </div>
+                }
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+                @if (isProcessing()) {
+                <p-progressbar [value]="progress()" [style]="{ width: '100%', height: '8px' }" />
+                }
+                <p-button label="Resize All" icon="pi pi-play" (onClick)="processFiles()"
+                    [disabled]="isProcessing() || files().length === 0" [style]="{ width: '100%' }" />
+                @if (processedCount() > 0) {
+                <p-button label="Save All Results" icon="pi pi-download" severity="secondary"
+                    (onClick)="saveAllResults()" [style]="{ width: '100%' }" />
+                }
+            </div>
+            }
+        </div>
+
+        <!-- Right: Preview -->
+        <div class="preview-section">
+            @if (selectedFile()) {
+            <app-preview-panel [originalSrc]="originalPreviewSrc()" [resultSrc]="resultPreviewSrc()"
+                [originalSize]="originalSize()" [resultSize]="resultSize()" [resultDimensions]="resultDimensions()"
+                [resultFormat]="selectedFile()?.result?.format ?? ''" />
+            } @else {
+            <div class="preview-empty">
+                <i class="pi pi-image"></i>
+                <p>Select or drop files to preview</p>
+            </div>
+            }
+        </div>
+    </div>
+</div>

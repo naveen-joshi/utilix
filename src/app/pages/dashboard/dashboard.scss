@@ -1,0 +1,120 @@
+.dashboard {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.5rem, 2.3vw, 2rem);
+  font-weight: 700;
+  color: var(--p-text-color);
+  letter-spacing: 0.01em;
+
+  i {
+    color: var(--p-primary-color);
+    font-size: 1.5rem;
+  }
+}
+
+.dashboard-subtitle {
+  margin: 0;
+  font-size: 0.98rem;
+  color: var(--p-text-secondary-color);
+}
+
+.utilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.utility-card {
+  border-radius: 14px;
+  border: 1px solid var(--app-border-color);
+  background: color-mix(in srgb, var(--app-panel-bg) 80%, transparent);
+  box-shadow: var(--app-shadow-soft);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+
+  &:not(.disabled):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
+    border-color: var(--p-primary-color);
+  }
+
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.card-link {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: -2px;
+    border-radius: 12px;
+  }
+}
+
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--p-primary-color) 26%, transparent),
+    color-mix(in srgb, var(--p-primary-color) 9%, transparent)
+  );
+  margin-bottom: 1rem;
+
+  i {
+    font-size: 1.25rem;
+    color: var(--p-primary-color);
+  }
+}
+
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.coming-soon {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--p-surface-200);
+  color: var(--p-text-secondary-color);
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+}
+
+.card-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--p-text-secondary-color);
+  line-height: 1.5;
+}

@@ -1,0 +1,46 @@
+<p-toast />
+
+<div class="settings-page">
+    <header class="page-header">
+        <h1 class="page-title">
+            <i class="pi pi-cog"></i>
+            App Settings
+        </h1>
+        <p class="page-subtitle">Configure save/download behavior for all tools in Utilix.</p>
+    </header>
+
+    <section class="settings-card" aria-label="Save preferences">
+        @if (isLoading()) {
+        <p class="state-text">Loading preferences...</p>
+        } @else {
+        <div class="setting-block">
+            <label class="setting-label">Save Behavior</label>
+            <p-select [options]="saveModeOptions" [ngModel]="saveMode()" (ngModelChange)="saveMode.set($event)"
+                optionLabel="label" optionValue="value" [style]="{ width: '100%' }" />
+        </div>
+
+        <div class="setting-block" [class.disabled]="!needsDirectory()">
+            <label class="setting-label">Default Save Folder</label>
+            <div class="directory-row">
+                <input pInputText [ngModel]="defaultDirectory()" (ngModelChange)="defaultDirectory.set($event)"
+                    [disabled]="!needsDirectory()" placeholder="Choose a folder" />
+                <button type="button" class="browse-btn" (click)="browseDirectory()" [disabled]="!needsDirectory()"
+                    aria-label="Browse default save folder">
+                    Browse
+                </button>
+            </div>
+            <p class="setting-hint">
+                @if (needsDirectory()) {
+                Converted and processed files will be auto-saved in this folder.
+                } @else {
+                Not used while Ask Every Time mode is selected.
+                }
+            </p>
+        </div>
+
+        <div class="actions">
+            <p-button label="Save Preferences" icon="pi pi-save" (onClick)="savePreferences()" [loading]="isSaving()" />
+        </div>
+        }
+    </section>
+</div>

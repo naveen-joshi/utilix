@@ -1,0 +1,63 @@
+@if (originalSrc() || resultSrc()) {
+<div class="preview-container">
+    <div class="preview-pane">
+        <h4 class="pane-title">Original</h4>
+        <div class="preview-image-wrapper">
+            @if (originalSrc()) {
+            <img [src]="originalSrc()" alt="Original file preview" class="preview-image" />
+            } @else {
+            <div class="preview-placeholder">
+                <i class="pi pi-image"></i>
+                <span>No preview</span>
+            </div>
+            }
+        </div>
+        <div class="preview-info">
+            <span class="info-item">
+                <i class="pi pi-file"></i> {{ formatFileSize(originalSize()) }}
+            </span>
+            @if (originalDimensions()) {
+            <span class="info-item">
+                <i class="pi pi-expand"></i> {{ originalDimensions() }}
+            </span>
+            }
+            @if (originalFormat()) {
+            <span class="info-item">
+                {{ originalFormat() | uppercase }}
+            </span>
+            }
+        </div>
+    </div>
+
+    @if (resultSrc()) {
+    <div class="preview-divider">
+        <i class="pi pi-arrow-right"></i>
+        @if (savings() > 0) {
+        <span class="savings-badge">-{{ savings() }}%</span>
+        }
+    </div>
+
+    <div class="preview-pane">
+        <h4 class="pane-title">Result</h4>
+        <div class="preview-image-wrapper">
+            <img [src]="resultSrc()" alt="Processed file preview" class="preview-image" />
+        </div>
+        <div class="preview-info">
+            <span class="info-item">
+                <i class="pi pi-file"></i> {{ formatFileSize(resultSize()) }}
+            </span>
+            @if (resultDimensions()) {
+            <span class="info-item">
+                <i class="pi pi-expand"></i> {{ resultDimensions() }}
+            </span>
+            }
+            @if (resultFormat()) {
+            <span class="info-item">
+                {{ resultFormat() | uppercase }}
+            </span>
+            }
+        </div>
+    </div>
+    }
+</div>
+}

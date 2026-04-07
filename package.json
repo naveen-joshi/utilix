@@ -1,0 +1,90 @@
+{
+  "name": "utilix",
+  "version": "1.0.0",
+  "description": "Utilix — Desktop utilities toolkit for file resize, compression, and more",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "electron:dev": "concurrently \"ng serve\" \"wait-on http://localhost:4200 && npm run build:electron && electron .\"",
+    "electron:build": "ng build --configuration production && npm run build:electron && electron-builder",
+    "electron:build:win": "ng build --configuration production && npm run build:electron && electron-builder --win nsis --config.win.signAndEditExecutable=false",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test"
+  },
+  "build": {
+    "appId": "com.utilix.app",
+    "productName": "Utilix",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@img/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icons/icon.ico"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "dependencies": {
+    "@angular/animations": "^21.2.7",
+    "@angular/cdk": "^21.2.5",
+    "@angular/common": "^21.0.0",
+    "@angular/compiler": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "@angular/router": "^21.0.0",
+    "@fontsource-variable/manrope": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@primeuix/themes": "^2.0.3",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.6.205",
+    "png-to-ico": "^3.0.1",
+    "primeicons": "^7.0.0",
+    "primeng": "^21.1.5",
+    "rxjs": "~7.8.0",
+    "sharp": "^0.34.5",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.0.4",
+    "@angular/cli": "^21.0.4",
+    "@angular/compiler-cli": "^21.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
+    "jsdom": "^27.1.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8",
+    "wait-on": "^9.0.4"
+  }
+}

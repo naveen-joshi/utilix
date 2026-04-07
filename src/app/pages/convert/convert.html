@@ -1,0 +1,124 @@
+<p-toast />
+
+<div class="convert-page">
+    <header class="page-header">
+        <h1 class="page-title">
+            <i class="pi pi-sync"></i>
+            File Conversion
+        </h1>
+        <p class="page-subtitle">Convert images, PDFs, documents, spreadsheets, and presentations.</p>
+    </header>
+
+    <div class="convert-layout">
+        <section class="controls-panel" aria-label="Conversion controls">
+            <app-file-dropzone
+                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.html,.htm,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg"
+                [multiple]="true" (filesSelected)="onFilesSelected($event)" />
+
+            <div class="engine-status" [class.available]="capabilities()?.libreOfficeAvailable">
+                <i class="pi" [class.pi-check-circle]="capabilities()?.libreOfficeAvailable"
+                    [class.pi-exclamation-triangle]="!capabilities()?.libreOfficeAvailable"></i>
+                <span>{{ libreOfficeNotice() }}</span>
+            </div>
+
+            @if (hasFiles()) {
+            <div class="file-list">
+                <div class="file-list-header">
+                    <span class="file-count">{{ files().length }} file(s)</span>
+                    <button class="clear-btn" (click)="clearAll()">
+                        <i class="pi pi-trash"></i>
+                        Clear
+                    </button>
+                </div>
+
+                @for (item of files(); track $index) {
+                <div class="file-item" [class.selected]="selectedFileIndex() === $index"
+                    [class.done]="item.status === 'done'" [class.error]="item.status === 'error'"
+                    [class.processing]="item.status === 'processing'" (click)="selectFile($index)"
+                    (keydown.enter)="selectFile($index)" role="button" tabindex="0"
+                    [attr.aria-label]="'Select ' + item.file.name">
+                    <div class="file-item-info">
+                        <span class="file-name" [title]="item.file.name">{{ item.file.name }}</span>
+                        <span class="file-size">{{ item.sourceFormat | uppercase }} • {{ formatFileSize(item.file.size)
+                            }}</span>
+                    </div>
+
+                    <div class="file-item-actions">
+                        @if (item.status === 'done') {
+                        <button class="action-icon save" (click)="saveResult($index); $event.stopPropagation()"
+                            aria-label="Save result" title="Save result">
+                            <i class="pi pi-download"></i>
+                        </button>
+                        }
+                        @if (item.status === 'processing') {
+                        <i class="pi pi-spin pi-spinner"></i>
+                        }
+                        @if (item.status === 'done') {
+                        <i class="pi pi-check-circle status-done"></i>
+                        }
+                        @if (item.status === 'error') {
+                        <i class="pi pi-times-circle status-error"></i>
+                        }
+                        <button class="action-icon remove" (click)="removeFile($index); $event.stopPropagation()"
+                            aria-label="Remove file" title="Remove">
+                            <i class="pi pi-times"></i>
+                        </button>
+                    </div>
+                </div>
+                }
+            </div>
+
+            <div class="options-panel">
+                <h3 class="options-title">Output Settings</h3>
+
+                <div class="option-group inline">
+                    <label class="option-label">Source Type</label>
+                    <span class="source-chip">{{ selectedFileCategory() | uppercase }}</span>
+                </div>
+
+                <div class="option-group">
+                    <label class="option-label">Output Format</label>
+                    <p-select [options]="targetOptions()" [ngModel]="outputFormat()"
+                        (ngModelChange)="outputFormat.set($event)" optionLabel="label" optionValue="value"
+                        [style]="{ width: '100%' }" />
+                </div>
+
+                @if (selectedFileCategory() === 'image') {
+                <div class="option-group">
+                    <label class="option-label">Quality: {{ quality() }}%</label>
+                    <p-slider [ngModel]="quality()" (ngModelChange)="quality.set($event)" [min]="1" [max]="100" />
+                </div>
+                }
+            </div>
+
+            <div class="actions">
+                @if (isProcessing()) {
+                <p-progressbar [value]="progress()" [style]="{ width: '100%', height: '8px' }" />
+                }
+
+                <p-button label="Convert All" icon="pi pi-play" (onClick)="convertAll()"
+                    [disabled]="isProcessing() || !hasFiles()" [style]="{ width: '100%' }" />
+
+                @if (processedCount() > 0) {
+                <p-button label="Save All" icon="pi pi-download" severity="secondary" (onClick)="saveAllResults()"
+                    [style]="{ width: '100%' }" />
+                }
+            </div>
+            }
+        </section>
+
+        <section class="preview-section" aria-label="Preview panel">
+            @if (selectedFile() && selectedFileCategory() === 'image') {
+            <app-preview-panel [originalSrc]="originalPreviewSrc()" [resultSrc]="resultPreviewSrc()"
+                [originalSize]="originalSize()" [resultSize]="resultSize()" [resultDimensions]="resultDimensions()"
+                [resultFormat]="selectedFile()?.result?.targetFormat ?? ''" />
+            } @else {
+            <div class="preview-empty">
+                <i class="pi pi-file"></i>
+                <p>Inline preview is available for image conversions. Other file types still convert and can be saved.
+                </p>
+            </div>
+            }
+        </section>
+    </div>
+</div>

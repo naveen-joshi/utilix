@@ -1,0 +1,36 @@
+<div class="dashboard">
+    <header class="dashboard-header">
+        <h1 class="dashboard-title">
+            <i class="pi pi-bolt"></i>
+            Welcome to Utilix
+        </h1>
+        <p class="dashboard-subtitle">Your desktop toolkit for everyday file utilities</p>
+    </header>
+
+    <div class="utilities-grid">
+        @for (utility of utilities; track utility.route) {
+        <div class="utility-card" [class.disabled]="!utility.available">
+            @if (utility.available) {
+            <a [routerLink]="utility.route" class="card-link">
+                <div class="card-icon">
+                    <i [class]="utility.icon"></i>
+                </div>
+                <h3 class="card-title">{{ utility.title }}</h3>
+                <p class="card-description">{{ utility.description }}</p>
+            </a>
+            } @else {
+            <div class="card-link">
+                <div class="card-icon">
+                    <i [class]="utility.icon"></i>
+                </div>
+                <h3 class="card-title">
+                    {{ utility.title }}
+                    <span class="coming-soon">Coming Soon</span>
+                </h3>
+                <p class="card-description">{{ utility.description }}</p>
+            </div>
+            }
+        </div>
+        }
+    </div>
+</div>
