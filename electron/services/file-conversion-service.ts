@@ -1,13 +1,14 @@
 import { ipcMain } from 'electron';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFParse } from 'pdf-parse';
 import sharp from 'sharp';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 
-type ConversionStrategy = 'sharp' | 'pdf-lib' | 'libreoffice' | 'copy';
+type ConversionStrategy = 'sharp' | 'pdf-lib' | 'libreoffice' | 'copy' | 'local';
 type ConversionCategory = 'image' | 'pdf' | 'document' | 'spreadsheet' | 'presentation' | 'text' | 'unknown';
 type RasterFormat = 'jpeg' | 'png' | 'webp' | 'gif' | 'avif';
 
@@ -118,6 +119,67 @@ function mimeTypeForFormat(format: string): string {
         default:
             return 'application/octet-stream';
     }
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function decodeHtmlEntities(value: string): string {
+    return value
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>');
+}
+
+function htmlToPlainText(value: string): string {
+    const withoutScript = value.replace(/<script[\s\S]*?<\/script>/gi, ' ');
+    const withoutStyle = withoutScript.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+    const withLineBreaks = withoutStyle
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n');
+    const stripped = withLineBreaks.replace(/<[^>]+>/g, ' ');
+    const decoded = decodeHtmlEntities(stripped);
+
+    return decoded
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function getLocalSupportedTargets(category: ConversionCategory, sourceFormat: string): Set<string> {
+    const targets = new Set<string>([sourceFormat]);
+
+    if (category === 'image') {
+        for (const format of ['png', 'jpeg', 'webp', 'gif', 'avif', 'svg', 'pdf']) {
+            targets.add(format);
+        }
+        return targets;
+    }
+
+    if (category === 'pdf') {
+        for (const format of ['pdf', 'txt', 'png', 'jpeg']) {
+            targets.add(format);
+        }
+        return targets;
+    }
+
+    if (category === 'text') {
+        for (const format of ['txt', 'html', 'pdf']) {
+            targets.add(format);
+        }
+        return targets;
+    }
+
+    return targets;
 }
 
 async function resolveLibreOfficeCommand(): Promise<string> {
@@ -239,6 +301,153 @@ async function convertImageToPdf(filePath: string): Promise<Buffer> {
     return Buffer.from(pdfBytes);
 }
 
+async function extractPdfText(filePath: string): Promise<string> {
+    const parser = new PDFParse({ data: await fs.readFile(filePath) });
+
+    try {
+        const result = await parser.getText();
+        return result.text ?? '';
+    } finally {
+        await parser.destroy();
+    }
+}
+
+async function convertPdfToText(filePath: string): Promise<Buffer> {
+    const text = await extractPdfText(filePath);
+    return Buffer.from(text, 'utf-8');
+}
+
+async function convertPdfToRaster(filePath: string, target: 'png' | 'jpeg', quality: number): Promise<Buffer> {
+    const parser = new PDFParse({ data: await fs.readFile(filePath) });
+
+    try {
+        const screenshots = await parser.getScreenshot({
+            first: 1,
+            imageDataUrl: false,
+            imageBuffer: true,
+        });
+
+        const page = screenshots.pages[0];
+        if (!page?.data) {
+            throw new Error('Unable to render a page preview from the PDF.');
+        }
+
+        const png = Buffer.from(page.data);
+        if (target === 'png') {
+            return png;
+        }
+
+        return sharp(png).jpeg({ quality, mozjpeg: true }).toBuffer();
+    } finally {
+        await parser.destroy();
+    }
+}
+
+async function readTextContent(filePath: string, sourceFormat: string): Promise<string> {
+    const text = await fs.readFile(filePath, 'utf-8');
+
+    if (sourceFormat === 'html') {
+        return htmlToPlainText(text);
+    }
+
+    return text;
+}
+
+async function convertTextToHtml(filePath: string, sourceFormat: string): Promise<Buffer> {
+    if (sourceFormat === 'html') {
+        return fs.readFile(filePath);
+    }
+
+    const text = await readTextContent(filePath, sourceFormat);
+    const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<title>Converted Document</title>\n</head>\n<body>\n<pre>${escapeHtml(text)}</pre>\n</body>\n</html>`;
+    return Buffer.from(html, 'utf-8');
+}
+
+function wrapTextToLines(text: string, maxLineLength: number): string[] {
+    const lines: string[] = [];
+    const paragraphs = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+    for (const paragraph of paragraphs) {
+        if (!paragraph.trim()) {
+            lines.push('');
+            continue;
+        }
+
+        const words = paragraph.split(/\s+/);
+        let currentLine = '';
+
+        for (const word of words) {
+            const candidate = currentLine ? `${currentLine} ${word}` : word;
+            if (candidate.length <= maxLineLength) {
+                currentLine = candidate;
+                continue;
+            }
+
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+
+            if (word.length <= maxLineLength) {
+                currentLine = word;
+                continue;
+            }
+
+            for (let start = 0; start < word.length; start += maxLineLength) {
+                const chunk = word.slice(start, start + maxLineLength);
+                if (chunk.length === maxLineLength) {
+                    lines.push(chunk);
+                } else {
+                    currentLine = chunk;
+                }
+            }
+        }
+
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+    }
+
+    return lines;
+}
+
+async function convertTextToPdf(filePath: string, sourceFormat: string): Promise<Buffer> {
+    const text = await readTextContent(filePath, sourceFormat);
+    const pdf = await PDFDocument.create();
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+    const pageWidth = 595;
+    const pageHeight = 842;
+    const margin = 50;
+    const fontSize = 11;
+    const lineHeight = 15;
+    const maxLineLength = 100;
+    const lines = wrapTextToLines(text, maxLineLength);
+
+    let page = pdf.addPage([pageWidth, pageHeight]);
+    let cursorY = pageHeight - margin;
+
+    for (const line of lines) {
+        if (cursorY < margin + lineHeight) {
+            page = pdf.addPage([pageWidth, pageHeight]);
+            cursorY = pageHeight - margin;
+        }
+
+        page.drawText(line, {
+            x: margin,
+            y: cursorY,
+            size: fontSize,
+            font,
+            maxWidth: pageWidth - margin * 2,
+            lineHeight,
+        });
+
+        cursorY -= lineHeight;
+    }
+
+    const pdfBytes = await pdf.save({ useObjectStreams: true, addDefaultPage: false });
+    return Buffer.from(pdfBytes);
+}
+
 async function convertWithLibreOffice(filePath: string, targetFormat: string): Promise<{ buffer: Buffer; outputFormat: string }> {
     const command = await resolveLibreOfficeCommand();
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'utilix-convert-'));
@@ -315,6 +524,7 @@ async function convertFile(options: FileConvertOptions): Promise<FileConvertResu
     let effectiveTarget = targetFormat;
 
     const sourceCategory = getCategory(sourceFormat);
+    const localSupportedTargets = getLocalSupportedTargets(sourceCategory, sourceFormat);
 
     if (sourceFormat === targetFormat) {
         outputBuffer = await fs.readFile(options.filePath);
@@ -329,11 +539,40 @@ async function convertFile(options: FileConvertOptions): Promise<FileConvertResu
         const converted = await convertImageWithSharp(options.filePath, targetFormat as RasterFormat, quality);
         outputBuffer = converted.buffer;
         strategy = 'sharp';
+    } else if (sourceCategory === 'pdf' && targetFormat === 'txt') {
+        outputBuffer = await convertPdfToText(options.filePath);
+        strategy = 'local';
+    } else if (sourceCategory === 'pdf' && (targetFormat === 'png' || targetFormat === 'jpeg')) {
+        outputBuffer = await convertPdfToRaster(options.filePath, targetFormat, quality);
+        strategy = 'local';
+    } else if (sourceCategory === 'text' && targetFormat === 'txt') {
+        const text = await readTextContent(options.filePath, sourceFormat);
+        outputBuffer = Buffer.from(text, 'utf-8');
+        strategy = 'local';
+    } else if (sourceCategory === 'text' && targetFormat === 'html') {
+        outputBuffer = await convertTextToHtml(options.filePath, sourceFormat);
+        strategy = 'local';
+    } else if (sourceCategory === 'text' && targetFormat === 'pdf') {
+        outputBuffer = await convertTextToPdf(options.filePath, sourceFormat);
+        strategy = 'local';
     } else {
-        const converted = await convertWithLibreOffice(options.filePath, targetFormat);
-        outputBuffer = converted.buffer;
-        effectiveTarget = converted.outputFormat;
-        strategy = 'libreoffice';
+        try {
+            const converted = await convertWithLibreOffice(options.filePath, targetFormat);
+            outputBuffer = converted.buffer;
+            effectiveTarget = converted.outputFormat;
+            strategy = 'libreoffice';
+        } catch (error) {
+            const localTargets = [...localSupportedTargets].sort().join(', ').toUpperCase();
+            const message = error instanceof Error ? error.message : 'Unsupported conversion.';
+
+            if (message.includes('LibreOffice was not found')) {
+                throw new Error(
+                    `Conversion ${sourceFormat.toUpperCase()} -> ${targetFormat.toUpperCase()} requires LibreOffice. Local formats available: ${localTargets || sourceFormat.toUpperCase()}.`
+                );
+            }
+
+            throw error;
+        }
     }
 
     if (options.outputPath) {

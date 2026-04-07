@@ -26,7 +26,7 @@ interface FileConversionResult {
     newSize: number;
     sourceFormat: string;
     targetFormat: string;
-    strategy: 'sharp' | 'pdf-lib' | 'libreoffice' | 'copy';
+    strategy: 'sharp' | 'pdf-lib' | 'libreoffice' | 'copy' | 'local';
     message?: string;
 }
 
@@ -98,6 +98,16 @@ const targetsByCategory: Record<ConvertCategory, ConvertTargetOption[]> = {
     unknown: [],
 };
 
+const localTargetsByCategory: Record<ConvertCategory, ReadonlySet<string>> = {
+    image: new Set(['png', 'jpeg', 'webp', 'gif', 'avif', 'svg', 'pdf']),
+    pdf: new Set(['pdf', 'txt', 'png', 'jpeg']),
+    document: new Set(),
+    spreadsheet: new Set(),
+    presentation: new Set(),
+    text: new Set(['txt', 'html', 'pdf']),
+    unknown: new Set(),
+};
+
 @Component({
     selector: 'app-convert',
     imports: [
@@ -132,9 +142,34 @@ export class Convert {
         () => this.selectedFile()?.category ?? 'unknown'
     );
 
-    protected readonly targetOptions = computed(
-        () => targetsByCategory[this.selectedFileCategory()] ?? []
-    );
+    protected readonly targetOptions = computed(() => {
+        const category = this.selectedFileCategory();
+        const options = targetsByCategory[category] ?? [];
+
+        if (this.capabilities()?.libreOfficeAvailable) {
+            return options;
+        }
+
+        const localTargets = new Set(localTargetsByCategory[category]);
+        const sourceFormat = this.selectedFile()?.sourceFormat;
+        if (sourceFormat && localTargets.size > 0) {
+            localTargets.add(sourceFormat);
+        }
+
+        return options.filter(option => localTargets.has(option.value));
+    });
+
+    protected readonly requiresLibreOfficeForCurrentType = computed(() => {
+        if (this.capabilities()?.libreOfficeAvailable) {
+            return false;
+        }
+
+        if (!this.hasFiles()) {
+            return false;
+        }
+
+        return this.targetOptions().length === 0;
+    });
 
     protected readonly selectedFile = computed(() => {
         const index = this.selectedFileIndex();
@@ -170,8 +205,8 @@ export class Convert {
         }
 
         return capabilities.libreOfficeAvailable
-            ? 'LibreOffice engine detected for office and PDF conversions.'
-            : 'LibreOffice not found. Install LibreOffice for office/PDF conversions.';
+            ? 'Advanced office conversion engine detected. All listed routes are available.'
+            : 'Running in local mode: image + basic PDF/TXT routes are available. Install LibreOffice for DOCX/XLSX/PPTX and advanced conversions.';
     });
 
     constructor() {
@@ -266,6 +301,15 @@ export class Convert {
         }
 
         const targetFormat = this.outputFormat();
+        if (this.requiresLibreOfficeForCurrentType()) {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'Engine Required',
+                detail: 'This source type needs LibreOffice for format conversion. Install LibreOffice to continue.',
+            });
+            return;
+        }
+
         if (!targetFormat) {
             this.messageService.add({
                 severity: 'warn',

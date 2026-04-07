@@ -1,6 +1,6 @@
 {
   "name": "utilix",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Utilix — Desktop utilities toolkit for file resize, compression, and more",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -67,6 +67,7 @@
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@primeuix/themes": "^2.0.3",
     "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.6.205",
     "png-to-ico": "^3.0.1",
     "primeicons": "^7.0.0",

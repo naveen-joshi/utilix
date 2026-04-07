@@ -80,8 +80,15 @@
                     <label class="option-label">Output Format</label>
                     <p-select [options]="targetOptions()" [ngModel]="outputFormat()"
                         (ngModelChange)="outputFormat.set($event)" optionLabel="label" optionValue="value"
-                        [style]="{ width: '100%' }" />
+                        [disabled]="targetOptions().length === 0" [style]="{ width: '100%' }" />
                 </div>
+
+                @if (requiresLibreOfficeForCurrentType()) {
+                <p class="engine-help">
+                    No local conversion route is available for this source type. Install LibreOffice to unlock these
+                    formats.
+                </p>
+                }
 
                 @if (selectedFileCategory() === 'image') {
                 <div class="option-group">
@@ -97,7 +104,8 @@
                 }
 
                 <p-button label="Convert All" icon="pi pi-play" (onClick)="convertAll()"
-                    [disabled]="isProcessing() || !hasFiles()" [style]="{ width: '100%' }" />
+                    [disabled]="isProcessing() || !hasFiles() || requiresLibreOfficeForCurrentType()"
+                    [style]="{ width: '100%' }" />
 
                 @if (processedCount() > 0) {
                 <p-button label="Save All" icon="pi pi-download" severity="secondary" (onClick)="saveAllResults()"
