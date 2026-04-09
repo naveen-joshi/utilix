@@ -47,6 +47,13 @@ export class Dashboard {
             available: true,
         },
         {
+            title: 'Video Tools',
+            description: 'Play, compress, and convert videos to MP4, WebM, MKV, AVI, MP3, and GIF — fully offline.',
+            icon: 'pi pi-video',
+            route: '/video',
+            available: true,
+        },
+        {
             title: 'Batch Rename',
             description: 'Rename multiple files at once with patterns, sequences, and find-replace.',
             icon: 'pi pi-pencil',

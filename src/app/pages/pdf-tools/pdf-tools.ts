@@ -10,7 +10,7 @@ import { ToastModule } from 'primeng/toast';
 import { ElectronService } from '../../services/electron.service';
 import { DropzoneFile, FileDropzone } from '../../shared/file-dropzone/file-dropzone';
 
-type PdfTool = 'merge' | 'extract' | 'rotate' | 'delete' | 'metadata';
+type PdfTool = 'merge' | 'extract' | 'rotate' | 'delete' | 'metadata' | 'encrypt' | 'decrypt' | 'watermark';
 
 interface PdfToolResult {
     success: boolean;
@@ -25,6 +25,14 @@ interface PdfMetadata {
     title?: string;
     author?: string;
     size: number;
+}
+
+interface PdfBackendStatus {
+    running: boolean;
+    mode: 'bundled' | 'dev' | 'unavailable';
+    port?: number;
+    message: string;
+    lastError?: string;
 }
 
 @Component({
@@ -57,6 +65,13 @@ export class PdfTools {
     protected readonly metadataAuthor = signal('');
     protected readonly metadataSubject = signal('');
     protected readonly metadataKeywords = signal('');
+    protected readonly pdfPassword = signal('');
+    protected readonly encryptUserPassword = signal('');
+    protected readonly encryptOwnerPassword = signal('');
+    protected readonly watermarkText = signal('CONFIDENTIAL');
+    protected readonly watermarkOpacity = signal(18);
+    protected readonly watermarkRotation = signal(35);
+    protected readonly watermarkFontSize = signal(42);
     protected readonly isProcessing = signal(false);
     protected readonly progress = signal(0);
     protected readonly maxPages = signal(1);
@@ -65,6 +80,8 @@ export class PdfTools {
     protected readonly suggestedFileName = signal('output.pdf');
     protected readonly originalPdfPreviewUrl = signal<SafeResourceUrl | null>(null);
     protected readonly resultPdfPreviewUrl = signal<SafeResourceUrl | null>(null);
+    protected readonly backendStatus = signal<PdfBackendStatus | null>(null);
+    protected readonly isBackendRestarting = signal(false);
 
     protected readonly toolOptions = [
         { label: 'Merge PDFs', value: 'merge' },
@@ -72,6 +89,9 @@ export class PdfTools {
         { label: 'Rotate Pages', value: 'rotate' },
         { label: 'Delete Pages', value: 'delete' },
         { label: 'Update Metadata', value: 'metadata' },
+        { label: 'Encrypt PDF', value: 'encrypt' },
+        { label: 'Decrypt PDF', value: 'decrypt' },
+        { label: 'Add Text Watermark', value: 'watermark' },
     ];
 
     protected readonly rotationOptions = [
@@ -105,6 +125,18 @@ export class PdfTools {
             return this.files().length >= 1 && this.selectedPages().length > 0;
         }
 
+        if (tool === 'encrypt') {
+            return this.files().length >= 1 && this.encryptUserPassword().trim().length > 0;
+        }
+
+        if (tool === 'decrypt') {
+            return this.files().length >= 1 && this.normalizedPassword() !== undefined;
+        }
+
+        if (tool === 'watermark') {
+            return this.files().length >= 1 && this.watermarkText().trim().length > 0;
+        }
+
         return this.files().length >= 1;
     });
 
@@ -122,8 +154,21 @@ export class PdfTools {
         if (tool === 'delete') {
             return 'Select pages visually and delete only those pages.';
         }
+        if (tool === 'encrypt') {
+            return 'Set user and owner passwords, then apply AES protection via the backend engine.';
+        }
+        if (tool === 'decrypt') {
+            return 'Provide the current password and remove encryption to produce an unlocked PDF.';
+        }
+        if (tool === 'watermark') {
+            return 'Stamp text watermark across selected pages with adjustable opacity and rotation.';
+        }
         return 'Set metadata fields and export a refreshed PDF file.';
     });
+
+    constructor() {
+        void this.refreshBackendStatus();
+    }
 
     async onFilesSelected(dropzoneFiles: DropzoneFile[]): Promise<void> {
         const pdfFiles = dropzoneFiles.filter(file => this.isPdfFile(file));
@@ -248,6 +293,7 @@ export class PdfTools {
             if (tool === 'merge') {
                 output = (await this.electronService.pdfMerge({
                     filePaths: this.files().map(file => file.path),
+                    password: this.normalizedPassword(),
                 })) as PdfToolResult;
                 this.suggestedFileName.set('merged.pdf');
             } else if (tool === 'extract') {
@@ -267,6 +313,7 @@ export class PdfTools {
                     startPage: this.startPage(),
                     endPage: this.endPage(),
                     pageNumbers: pages,
+                    password: this.normalizedPassword(),
                 })) as PdfToolResult;
                 this.suggestedFileName.set(
                     `${this.getFileBaseName(sourceName)}-selected-pages.pdf`
@@ -289,6 +336,7 @@ export class PdfTools {
                     startPage: this.startPage(),
                     endPage: this.endPage(),
                     pageNumbers: pages,
+                    password: this.normalizedPassword(),
                 })) as PdfToolResult;
                 this.suggestedFileName.set(`${this.getFileBaseName(sourceName)}-rotated.pdf`);
             } else if (tool === 'delete') {
@@ -310,8 +358,69 @@ export class PdfTools {
                 output = (await this.electronService.pdfDeletePages({
                     filePath: sourcePath,
                     pageNumbers: pages,
+                    password: this.normalizedPassword(),
                 })) as PdfToolResult;
                 this.suggestedFileName.set(`${this.getFileBaseName(sourceName)}-trimmed.pdf`);
+            } else if (tool === 'encrypt') {
+                const sourcePath = primaryFile?.path;
+                const sourceName = primaryFile?.name ?? 'document.pdf';
+                if (!sourcePath) {
+                    throw new Error('No PDF file selected.');
+                }
+
+                const userPassword = this.encryptUserPassword().trim();
+                if (!userPassword) {
+                    throw new Error('Set a user password before encrypting.');
+                }
+
+                output = (await this.electronService.pdfEncrypt({
+                    filePath: sourcePath,
+                    userPassword,
+                    ownerPassword: this.encryptOwnerPassword().trim() || undefined,
+                    existingPassword: this.normalizedPassword(),
+                })) as PdfToolResult;
+                this.suggestedFileName.set(`${this.getFileBaseName(sourceName)}-encrypted.pdf`);
+            } else if (tool === 'decrypt') {
+                const sourcePath = primaryFile?.path;
+                const sourceName = primaryFile?.name ?? 'document.pdf';
+                if (!sourcePath) {
+                    throw new Error('No PDF file selected.');
+                }
+
+                const password = this.normalizedPassword();
+                if (!password) {
+                    throw new Error('Enter the current PDF password to decrypt.');
+                }
+
+                output = (await this.electronService.pdfDecrypt({
+                    filePath: sourcePath,
+                    password,
+                })) as PdfToolResult;
+                this.suggestedFileName.set(`${this.getFileBaseName(sourceName)}-decrypted.pdf`);
+            } else if (tool === 'watermark') {
+                const sourcePath = primaryFile?.path;
+                const sourceName = primaryFile?.name ?? 'document.pdf';
+                if (!sourcePath) {
+                    throw new Error('No PDF file selected.');
+                }
+
+                const text = this.watermarkText().trim();
+                if (!text) {
+                    throw new Error('Watermark text cannot be empty.');
+                }
+
+                const pages = this.selectedPages();
+
+                output = (await this.electronService.pdfWatermarkText({
+                    filePath: sourcePath,
+                    text,
+                    opacity: Math.max(0, Math.min(this.watermarkOpacity(), 100)) / 100,
+                    rotation: this.watermarkRotation(),
+                    fontSize: this.watermarkFontSize(),
+                    pageNumbers: pages.length > 0 ? pages : undefined,
+                    password: this.normalizedPassword(),
+                })) as PdfToolResult;
+                this.suggestedFileName.set(`${this.getFileBaseName(sourceName)}-watermarked.pdf`);
             } else {
                 const sourcePath = primaryFile?.path;
                 const sourceName = primaryFile?.name ?? 'document.pdf';
@@ -325,6 +434,7 @@ export class PdfTools {
                     author: this.metadataAuthor(),
                     subject: this.metadataSubject(),
                     keywords: this.metadataKeywords(),
+                    password: this.normalizedPassword(),
                 })) as PdfToolResult;
                 this.suggestedFileName.set(`${this.getFileBaseName(sourceName)}-metadata.pdf`);
             }
@@ -348,6 +458,7 @@ export class PdfTools {
             });
         } finally {
             this.isProcessing.set(false);
+            void this.refreshBackendStatus();
         }
     }
 
@@ -392,14 +503,65 @@ export class PdfTools {
         }
 
         try {
-            const metadata = (await this.electronService.pdfGetMetadata(primary.path)) as PdfMetadata;
+            const metadata = (await this.electronService.pdfGetMetadata(primary.path, this.normalizedPassword())) as PdfMetadata;
             const pageCount = Math.max(1, metadata.pageCount);
             this.maxPages.set(pageCount);
             this.startPage.set(1);
             this.endPage.set(pageCount);
             this.selectedPages.set(Array.from({ length: pageCount }, (_, index) => index + 1));
         } catch {
-            // Metadata is optional for operation setup.
+            this.maxPages.set(1);
+            this.startPage.set(1);
+            this.endPage.set(1);
+            this.selectedPages.set([]);
+        }
+    }
+
+    protected onPasswordChanged(value: string): void {
+        this.pdfPassword.set(value);
+        void this.updatePrimaryFileMetadata();
+    }
+
+    protected async refreshBackendStatus(): Promise<void> {
+        if (!this.electronService.isElectron) {
+            return;
+        }
+
+        try {
+            const status = (await this.electronService.pdfBackendStatus()) as PdfBackendStatus;
+            this.backendStatus.set(status);
+        } catch (error) {
+            this.backendStatus.set({
+                running: false,
+                mode: 'unavailable',
+                message: 'Could not query PDF backend status.',
+                lastError: this.getErrorMessage(error),
+            });
+        }
+    }
+
+    protected async restartBackend(): Promise<void> {
+        if (!this.electronService.isElectron || this.isBackendRestarting()) {
+            return;
+        }
+
+        this.isBackendRestarting.set(true);
+        try {
+            const status = (await this.electronService.pdfBackendRestart()) as PdfBackendStatus;
+            this.backendStatus.set(status);
+            this.messageService.add({
+                severity: status.running ? 'success' : 'warn',
+                summary: 'Backend Status',
+                detail: status.message,
+            });
+        } catch (error) {
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Backend Restart Failed',
+                detail: this.getErrorMessage(error),
+            });
+        } finally {
+            this.isBackendRestarting.set(false);
         }
     }
 
@@ -453,6 +615,15 @@ export class PdfTools {
         if (tool === 'delete') {
             return 'Delete Pages';
         }
+        if (tool === 'encrypt') {
+            return 'Encrypt PDF';
+        }
+        if (tool === 'decrypt') {
+            return 'Decrypt PDF';
+        }
+        if (tool === 'watermark') {
+            return 'Add Text Watermark';
+        }
         return 'Update Metadata';
     }
 
@@ -470,6 +641,11 @@ export class PdfTools {
         }
 
         return 'Unexpected error while processing the PDF.';
+    }
+
+    private normalizedPassword(): string | undefined {
+        const value = this.pdfPassword().trim();
+        return value.length > 0 ? value : undefined;
     }
 
     private base64ToArrayBuffer(value: string): ArrayBuffer {

@@ -9,10 +9,12 @@
     "build": "ng build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "electron:dev": "concurrently \"ng serve\" \"wait-on http://localhost:4200 && npm run build:electron && electron .\"",
-    "electron:build": "ng build --configuration production && npm run build:electron && electron-builder --publish never",
-    "electron:build:win": "ng build --configuration production && npm run build:electron && electron-builder --win nsis --config.win.signAndEditExecutable=false --publish never",
+    "electron:build": "npm run python-backend:build && ng build --configuration production && npm run build:electron && electron-builder --publish never",
+    "electron:build:win": "npm run python-backend:build && ng build --configuration production && npm run build:electron && electron-builder --win nsis --config.win.signAndEditExecutable=false --publish never",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "python-backend:install": "python -m pip install -r python-backend/requirements.txt pyinstaller",
+    "python-backend:build": "python -m PyInstaller --noconfirm --clean --onefile --name pdf_processor --distpath python-backend --workpath python-backend/.pyinstaller/build --specpath python-backend/.pyinstaller python-backend/server.py"
   },
   "build": {
     "appId": "com.utilix.app",
@@ -27,7 +29,17 @@
     "asar": true,
     "asarUnpack": [
       "**/node_modules/sharp/**/*",
-      "**/node_modules/@img/**/*"
+      "**/node_modules/@img/**/*",
+      "**/node_modules/ffmpeg-static/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python-backend",
+        "to": "python-backend",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "target": "nsis",
@@ -66,6 +78,8 @@
     "@fontsource-variable/manrope": "^5.2.8",
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@primeuix/themes": "^2.0.3",
+    "ffmpeg-static": "^5.3.0",
+    "fluent-ffmpeg": "^2.1.3",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.6.205",
@@ -80,6 +94,7 @@
     "@angular/build": "^21.0.4",
     "@angular/cli": "^21.0.4",
     "@angular/compiler-cli": "^21.0.0",
+    "@types/fluent-ffmpeg": "^2.1.28",
     "concurrently": "^9.2.1",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",

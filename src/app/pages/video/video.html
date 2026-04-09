@@ -1,0 +1,163 @@
+<p-toast />
+
+<div class="video-page">
+    <header class="page-header">
+        <h1 class="page-title">
+            <i class="pi pi-video" aria-hidden="true"></i>
+            Video Tools
+        </h1>
+        <p class="page-subtitle">Play, compress, and convert videos — all locally, no upload required.</p>
+    </header>
+
+    @if (!hasFiles()) {
+    <div class="drop-landing">
+        <app-file-dropzone accept=".mp4,.mov,.avi,.mkv,.webm,.flv,.wmv,.m4v,.3gp,.ts,.mts,.mxf" [multiple]="true"
+            (filesSelected)="onFilesSelected($event)" />
+    </div>
+    } @else {
+    <div class="video-layout">
+
+        <!-- ── Left: File list + convert controls ── -->
+        <section class="controls-panel" aria-label="Video controls">
+            <app-file-dropzone accept=".mp4,.mov,.avi,.mkv,.webm,.flv,.wmv,.m4v,.3gp,.ts,.mts,.mxf" [multiple]="true"
+                (filesSelected)="onFilesSelected($event)" />
+
+            <div class="file-list">
+                <div class="file-list-header">
+                    <span class="file-count">{{ files().length }} file(s)</span>
+                    <button class="clear-btn" (click)="clearAll()">
+                        <i class="pi pi-trash" aria-hidden="true"></i>
+                        Clear all
+                    </button>
+                </div>
+
+                @for (item of files(); track $index) {
+                <div class="file-item" [class.selected]="selectedFileIndex() === $index"
+                    [class.done]="item.status === 'done'" [class.error]="item.status === 'error'"
+                    [class.converting]="item.status === 'converting'" (click)="selectFile($index)"
+                    (keydown.enter)="selectFile($index)" role="button" tabindex="0"
+                    [attr.aria-label]="'Select ' + item.dropzoneFile.name"
+                    [attr.aria-pressed]="selectedFileIndex() === $index">
+                    <i class="pi pi-video file-type-icon" aria-hidden="true"></i>
+                    <div class="file-item-info">
+                        <span class="file-name" [title]="item.dropzoneFile.name">{{ item.dropzoneFile.name }}</span>
+                        <span class="file-size">{{ formatFileSize(item.dropzoneFile.size) }}</span>
+                    </div>
+                    <div class="file-item-status">
+                        @if (item.status === 'converting') {
+                        <i class="pi pi-spin pi-spinner" aria-label="Converting"></i>
+                        } @else if (item.status === 'done') {
+                        <i class="pi pi-check-circle status-done" aria-label="Conversion complete"></i>
+                        } @else if (item.status === 'error') {
+                        <i class="pi pi-times-circle status-error" [title]="item.error"
+                            aria-label="Conversion error"></i>
+                        }
+                        <button class="action-icon remove" (click)="removeFile($index); $event.stopPropagation()"
+                            [attr.aria-label]="'Remove ' + item.dropzoneFile.name" title="Remove">
+                            <i class="pi pi-times" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                }
+            </div>
+
+            @if (selectedFile()) {
+            <div class="options-panel">
+                <h2 class="options-title">Convert Settings</h2>
+
+                <div class="option-group">
+                    <label class="option-label" for="fmt-select">Output Format</label>
+                    <p-select inputId="fmt-select" [options]="targetOptions" [ngModel]="outputFormat()"
+                        (ngModelChange)="outputFormat.set($event)" optionLabel="label" optionValue="value"
+                        [style]="{ width: '100%' }" />
+                </div>
+
+                @if (showQualitySlider()) {
+                <div class="option-group">
+                    <label class="option-label" id="quality-label">Quality: {{ quality() }}%</label>
+                    <p-slider [ngModel]="quality()" (ngModelChange)="quality.set($event)" [min]="1" [max]="100"
+                        aria-labelledby="quality-label" />
+                </div>
+                }
+            </div>
+
+            <div class="actions">
+                @if (isConverting()) {
+                <div class="progress-section" role="status" aria-live="polite">
+                    <p-progressbar [value]="conversionProgress()" [mode]="progressMode()" [style]="{ height: '8px' }" />
+                    <div class="progress-info">
+                        @if (progressMode() === 'determinate') {
+                        <span>{{ conversionProgress() }}%</span>
+                        }
+                        @if (timemark()) {
+                        <span class="timemark">{{ timemark() }}</span>
+                        }
+                    </div>
+                </div>
+                }
+
+                <p-button label="Convert" icon="pi pi-play" (onClick)="convert()" [disabled]="isConverting()"
+                    [style]="{ width: '100%' }" />
+
+                @if (hasConvertedResult()) {
+                <p-button label="Save Converted" icon="pi pi-download" severity="secondary" (onClick)="saveConverted()"
+                    [disabled]="isConverting()" [style]="{ width: '100%' }" />
+                }
+            </div>
+            }
+        </section>
+
+        <!-- ── Right: Video player ── -->
+        <section class="player-section" aria-label="Video player">
+            @if (selectedFile()) {
+            <div class="player-toolbar">
+                <div class="source-toggle" role="group" aria-label="Choose video source">
+                    <button class="toggle-btn" [class.active]="playerMode() === 'original'"
+                        (click)="playerMode.set('original')" [disabled]="isConverting()"
+                        aria-pressed="{{ playerMode() === 'original' }}">
+                        Original
+                    </button>
+                    <button class="toggle-btn" [class.active]="playerMode() === 'converted'"
+                        (click)="playerMode.set('converted')" [disabled]="!hasConvertedResult() || isConverting()"
+                        aria-pressed="{{ playerMode() === 'converted' }}">
+                        Converted
+                    </button>
+                </div>
+
+                @if (playerMode() === 'converted' && selectedFile()?.convertedSize) {
+                <span class="size-badge">{{ formatFileSize(selectedFile()!.convertedSize!) }}</span>
+                } @else if (playerMode() === 'original') {
+                <span class="size-badge">{{ formatFileSize(selectedFile()!.dropzoneFile.size) }}</span>
+                }
+            </div>
+
+            <div class="video-wrapper">
+                @if (activeVideoUrl()) {
+                <video class="video-player" [src]="activeVideoUrl()!" controls preload="metadata"
+                    aria-label="Video player">
+                    <track kind="captions" />
+                </video>
+                } @else {
+                <div class="player-placeholder">
+                    <i class="pi pi-video" aria-hidden="true"></i>
+                    <p>Video will appear here.</p>
+                </div>
+                }
+            </div>
+
+            @if (selectedFile()?.status === 'error') {
+            <div class="error-notice" role="alert">
+                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                <span>{{ selectedFile()!.error }}</span>
+            </div>
+            }
+            } @else {
+            <div class="player-placeholder large">
+                <i class="pi pi-video" aria-hidden="true"></i>
+                <p>Select a video from the list to preview and convert.</p>
+            </div>
+            }
+        </section>
+    </div>
+    }
+</div>

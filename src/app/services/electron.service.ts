@@ -42,8 +42,16 @@ export class ElectronService {
         return this.api.fileConvert(options);
     }
 
+    async fileCancelConversion(jobId: string): Promise<unknown> {
+        return this.api.fileCancelConversion(jobId);
+    }
+
     async fileConversionCapabilities(): Promise<unknown> {
         return this.api.fileConversionCapabilities();
+    }
+
+    async filePreview(filePath: string, category?: string): Promise<unknown> {
+        return this.api.filePreview(filePath, category);
     }
 
     async imageResize(options: unknown): Promise<unknown> {
@@ -106,8 +114,28 @@ export class ElectronService {
         return this.api.pdfUpdateMetadata(options);
     }
 
-    async pdfGetMetadata(filePath: string): Promise<unknown> {
-        return this.api.pdfGetMetadata(filePath);
+    async pdfGetMetadata(filePath: string, password?: string): Promise<unknown> {
+        return this.api.pdfGetMetadata(filePath, password);
+    }
+
+    async pdfEncrypt(options: unknown): Promise<unknown> {
+        return this.api.pdfEncrypt(options);
+    }
+
+    async pdfDecrypt(options: unknown): Promise<unknown> {
+        return this.api.pdfDecrypt(options);
+    }
+
+    async pdfWatermarkText(options: unknown): Promise<unknown> {
+        return this.api.pdfWatermarkText(options);
+    }
+
+    async pdfBackendStatus(): Promise<unknown> {
+        return this.api.pdfBackendStatus();
+    }
+
+    async pdfBackendRestart(): Promise<unknown> {
+        return this.api.pdfBackendRestart();
     }
 
     async showSaveDialog(options: unknown): Promise<unknown> {
@@ -124,5 +152,23 @@ export class ElectronService {
 
     async readFileBase64(filePath: string): Promise<string> {
         return this.api.readFileBase64(filePath);
+    }
+
+    async videoConvert(options: unknown): Promise<unknown> {
+        return this.api.videoConvert(options);
+    }
+
+    async fileCopyTo(sourcePath: string, destPath: string): Promise<void> {
+        return this.api.fileCopyTo(sourcePath, destPath);
+    }
+
+    getLocalVideoUrl(filePath: string): string {
+        return this.api.getLocalVideoUrl(filePath);
+    }
+
+    onVideoProgress(
+        callback: (data: { percent: number | undefined; timemark: string; currentKbps: number | undefined }) => void
+    ): () => void {
+        return this.api.onVideoProgress(callback);
     }
 }

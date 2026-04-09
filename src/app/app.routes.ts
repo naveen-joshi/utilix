@@ -22,6 +22,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/pdf-tools/pdf-tools').then(m => m.PdfTools),
     },
     {
+        path: 'video',
+        loadComponent: () => import('./pages/video/video').then(m => m.VideoPage),
+    },
+    {
         path: 'settings',
         loadComponent: () => import('./pages/settings/settings').then(m => m.Settings),
     },

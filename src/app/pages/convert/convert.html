@@ -6,13 +6,13 @@
             <i class="pi pi-sync"></i>
             File Conversion
         </h1>
-        <p class="page-subtitle">Convert images, PDFs, documents, spreadsheets, and presentations.</p>
+        <p class="page-subtitle">Convert images, PDFs, documents, spreadsheets, presentations, and videos.</p>
     </header>
 
     <div class="convert-layout">
         <section class="controls-panel" aria-label="Conversion controls">
             <app-file-dropzone
-                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.html,.htm,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg"
+                accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.html,.htm,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.mov,.avi,.mkv,.webm,.flv,.wmv,.m4v"
                 [multiple]="true" (filesSelected)="onFilesSelected($event)" />
 
             <div class="engine-status" [class.available]="capabilities()?.libreOfficeAvailable">
@@ -34,20 +34,35 @@
                 @for (item of files(); track $index) {
                 <div class="file-item" [class.selected]="selectedFileIndex() === $index"
                     [class.done]="item.status === 'done'" [class.error]="item.status === 'error'"
-                    [class.processing]="item.status === 'processing'" (click)="selectFile($index)"
+                    [class.processing]="item.status === 'processing'" [class.cancelled]="item.status === 'cancelled'"
+                    (click)="selectFile($index)"
                     (keydown.enter)="selectFile($index)" role="button" tabindex="0"
                     [attr.aria-label]="'Select ' + item.file.name">
                     <div class="file-item-info">
                         <span class="file-name" [title]="item.file.name">{{ item.file.name }}</span>
-                        <span class="file-size">{{ item.sourceFormat | uppercase }} • {{ formatFileSize(item.file.size)
-                            }}</span>
+                        <span class="file-size">{{ item.sourceFormat | uppercase }} -> {{ item.targetFormat |
+                            uppercase }} • {{ formatFileSize(item.file.size) }}</span>
+                        @if (item.error) {
+                        <span class="file-error" [title]="item.error">{{ item.error }}</span>
+                        }
                     </div>
 
                     <div class="file-item-actions">
+                        <span class="status-pill" [class.done]="item.status === 'done'"
+                            [class.error]="item.status === 'error'" [class.processing]="item.status === 'processing'"
+                            [class.cancelled]="item.status === 'cancelled'">
+                            {{ formatStatus(item.status) }}
+                        </span>
                         @if (item.status === 'done') {
                         <button class="action-icon save" (click)="saveResult($index); $event.stopPropagation()"
                             aria-label="Save result" title="Save result">
                             <i class="pi pi-download"></i>
+                        </button>
+                        }
+                        @if (item.status === 'error' || item.status === 'cancelled') {
+                        <button class="action-icon" (click)="retryItem($index); $event.stopPropagation()"
+                            aria-label="Retry file" title="Retry file">
+                            <i class="pi pi-refresh"></i>
                         </button>
                         }
                         @if (item.status === 'processing') {
@@ -58,6 +73,9 @@
                         }
                         @if (item.status === 'error') {
                         <i class="pi pi-times-circle status-error"></i>
+                        }
+                        @if (item.status === 'cancelled') {
+                        <i class="pi pi-ban status-cancelled"></i>
                         }
                         <button class="action-icon remove" (click)="removeFile($index); $event.stopPropagation()"
                             aria-label="Remove file" title="Remove">
@@ -79,7 +97,7 @@
                 <div class="option-group">
                     <label class="option-label">Output Format</label>
                     <p-select [options]="targetOptions()" [ngModel]="outputFormat()"
-                        (ngModelChange)="outputFormat.set($event)" optionLabel="label" optionValue="value"
+                        (ngModelChange)="onOutputFormatChanged($event)" optionLabel="label" optionValue="value"
                         [disabled]="targetOptions().length === 0" [style]="{ width: '100%' }" />
                 </div>
 
@@ -104,8 +122,18 @@
                 }
 
                 <p-button label="Convert All" icon="pi pi-play" (onClick)="convertAll()"
-                    [disabled]="isProcessing() || !hasFiles() || requiresLibreOfficeForCurrentType()"
+                    [disabled]="isProcessing() || !hasFiles()"
                     [style]="{ width: '100%' }" />
+
+                @if (isProcessing()) {
+                <p-button label="Cancel Queue" icon="pi pi-stop-circle" severity="danger" (onClick)="cancelQueue()"
+                    [disabled]="isCancelling()" [style]="{ width: '100%' }" />
+                }
+
+                @if (!isProcessing() && retryableCount() > 0) {
+                <p-button label="Retry Failed" icon="pi pi-refresh" severity="secondary" (onClick)="retryFailed()"
+                    [style]="{ width: '100%' }" />
+                }
 
                 @if (processedCount() > 0) {
                 <p-button label="Save All" icon="pi pi-download" severity="secondary" (onClick)="saveAllResults()"
@@ -116,15 +144,75 @@
         </section>
 
         <section class="preview-section" aria-label="Preview panel">
-            @if (selectedFile() && selectedFileCategory() === 'image') {
-            <app-preview-panel [originalSrc]="originalPreviewSrc()" [resultSrc]="resultPreviewSrc()"
-                [originalSize]="originalSize()" [resultSize]="resultSize()" [resultDimensions]="resultDimensions()"
-                [resultFormat]="selectedFile()?.result?.targetFormat ?? ''" />
+            @if (selectedFile()) {
+            <div class="preview-stack">
+                <article class="preview-card">
+                    <header class="preview-card-header">
+                        <h3>Source Preview</h3>
+                        <span>{{ formatFileSize(originalSize()) }}</span>
+                    </header>
+
+                    <div class="preview-card-body">
+                        @if (selectedSourcePreview()?.thumbnailSrc) {
+                        <img class="preview-image" [src]="selectedSourcePreview()?.thumbnailSrc"
+                            [alt]="'Preview of ' + selectedFile()?.file?.name" />
+                        } @else {
+                        <div class="preview-empty-content">
+                            <i class="pi pi-image"></i>
+                            <p>Preview thumbnail is not available for this file.</p>
+                        </div>
+                        }
+
+                        @if (selectedSourcePreview()?.excerpt) {
+                        <p class="preview-excerpt">{{ selectedSourcePreview()?.excerpt }}</p>
+                        }
+
+                        @if (selectedSourcePreview()?.pageCount) {
+                        <p class="preview-meta">Pages: {{ selectedSourcePreview()?.pageCount }}</p>
+                        }
+
+                        @if (selectedSourcePreview()?.message) {
+                        <p class="preview-meta">{{ selectedSourcePreview()?.message }}</p>
+                        }
+                    </div>
+                </article>
+
+                <article class="preview-card">
+                    <header class="preview-card-header">
+                        <h3>Result Preview</h3>
+                        @if (resultSize() > 0) {
+                        <span>{{ formatFileSize(resultSize()) }}</span>
+                        }
+                    </header>
+
+                    <div class="preview-card-body">
+                        @if (selectedResultPreview()?.pdfSrc) {
+                        <iframe class="preview-pdf" [src]="selectedResultPreview()?.pdfSrc"
+                            title="Converted PDF preview"></iframe>
+                        } @else if (selectedResultPreview()?.thumbnailSrc) {
+                        <img class="preview-image" [src]="selectedResultPreview()?.thumbnailSrc"
+                            [alt]="'Converted preview for ' + selectedFile()?.file?.name" />
+                        } @else {
+                        <div class="preview-empty-content">
+                            <i class="pi pi-inbox"></i>
+                            <p>Run conversion to generate a preview.</p>
+                        </div>
+                        }
+
+                        @if (selectedResultPreview()?.excerpt) {
+                        <p class="preview-excerpt">{{ selectedResultPreview()?.excerpt }}</p>
+                        }
+
+                        @if (selectedResultPreview()?.message) {
+                        <p class="preview-meta">{{ selectedResultPreview()?.message }}</p>
+                        }
+                    </div>
+                </article>
+            </div>
             } @else {
             <div class="preview-empty">
                 <i class="pi pi-file"></i>
-                <p>Inline preview is available for image conversions. Other file types still convert and can be saved.
-                </p>
+                <p>Select a file to inspect source and result previews.</p>
             </div>
             }
         </section>

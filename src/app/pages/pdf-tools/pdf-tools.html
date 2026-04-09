@@ -6,7 +6,22 @@
             <i class="pi pi-file-edit"></i>
             PDF Tools
         </h1>
-        <p class="page-subtitle">Merge, extract, rotate, trim pages, and update metadata in one place.</p>
+        <p class="page-subtitle">Merge, extract, rotate, trim, watermark, encrypt, decrypt, and update metadata in one place.</p>
+
+        <div class="backend-status" [class.running]="backendStatus()?.running">
+            <div class="status-text">
+                <strong>Backend:</strong>
+                <span>{{ backendStatus()?.message ?? 'Checking Python PDF backend...' }}</span>
+                @if (backendStatus()?.lastError) {
+                <small>{{ backendStatus()?.lastError }}</small>
+                }
+            </div>
+            <button type="button" class="backend-restart" (click)="restartBackend()"
+                [disabled]="isBackendRestarting()">
+                <i class="pi pi-refresh"></i>
+                Restart Backend
+            </button>
+        </div>
     </header>
 
     <div class="pdf-tools-layout">
@@ -50,7 +65,15 @@
 
                 <p class="helper-text">{{ helperText() }}</p>
 
-                @if (selectedTool() === 'extract' || selectedTool() === 'rotate' || selectedTool() === 'delete') {
+                <div class="option-group">
+                    <label class="option-label" for="pdfPassword">PDF Password (if protected)</label>
+                    <input pInputText id="pdfPassword" type="password" [ngModel]="pdfPassword()"
+                        (ngModelChange)="onPasswordChanged($event)" autocomplete="off"
+                        placeholder="Enter password for encrypted PDFs" />
+                </div>
+
+                @if (selectedTool() === 'extract' || selectedTool() === 'rotate' || selectedTool() === 'delete' ||
+                selectedTool() === 'watermark') {
                 <div class="page-selection-card">
                     <div class="page-selection-header">
                         <span class="page-selection-summary">{{ selectedPagesSummary() }}</span>
@@ -100,6 +123,52 @@
                         <label class="option-label" for="metaKeywords">Keywords</label>
                         <input pInputText id="metaKeywords" [ngModel]="metadataKeywords()"
                             (ngModelChange)="metadataKeywords.set($event)" placeholder="reports,finance,2026" />
+                    </div>
+                </div>
+                }
+
+                @if (selectedTool() === 'encrypt') {
+                <div class="metadata-grid">
+                    <div class="option-group">
+                        <label class="option-label" for="encryptUserPassword">User Password</label>
+                        <input pInputText id="encryptUserPassword" type="password" [ngModel]="encryptUserPassword()"
+                            (ngModelChange)="encryptUserPassword.set($event)" autocomplete="off"
+                            placeholder="Required for opening the PDF" />
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label" for="encryptOwnerPassword">Owner Password</label>
+                        <input pInputText id="encryptOwnerPassword" type="password"
+                            [ngModel]="encryptOwnerPassword()" (ngModelChange)="encryptOwnerPassword.set($event)"
+                            autocomplete="off" placeholder="Optional admin password" />
+                    </div>
+                </div>
+                }
+
+                @if (selectedTool() === 'decrypt') {
+                <p class="helper-text">Enter the current PDF password above to unlock this file.</p>
+                }
+
+                @if (selectedTool() === 'watermark') {
+                <div class="metadata-grid">
+                    <div class="option-group">
+                        <label class="option-label" for="watermarkText">Watermark Text</label>
+                        <input pInputText id="watermarkText" [ngModel]="watermarkText()"
+                            (ngModelChange)="watermarkText.set($event)" placeholder="CONFIDENTIAL" />
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label" for="watermarkOpacity">Opacity (0-100)</label>
+                        <input pInputText id="watermarkOpacity" type="number" min="0" max="100"
+                            [ngModel]="watermarkOpacity()" (ngModelChange)="watermarkOpacity.set(+$event || 0)" />
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label" for="watermarkRotation">Rotation</label>
+                        <input pInputText id="watermarkRotation" type="number" min="-180" max="180"
+                            [ngModel]="watermarkRotation()" (ngModelChange)="watermarkRotation.set(+$event || 0)" />
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label" for="watermarkFontSize">Font Size</label>
+                        <input pInputText id="watermarkFontSize" type="number" min="8" max="160"
+                            [ngModel]="watermarkFontSize()" (ngModelChange)="watermarkFontSize.set(+$event || 42)" />
                     </div>
                 </div>
                 }

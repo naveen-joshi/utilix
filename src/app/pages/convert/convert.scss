@@ -133,6 +133,11 @@
   &.processing {
     opacity: 0.7;
   }
+
+  &.cancelled {
+    border-left: 3px solid var(--p-orange-500);
+    background: color-mix(in srgb, var(--p-orange-500) 10%, transparent);
+  }
 }
 
 .file-item-info {
@@ -153,6 +158,16 @@
 .file-size {
   font-size: 0.76rem;
   color: var(--p-text-secondary-color);
+}
+
+.file-error {
+  margin-top: 0.18rem;
+  font-size: 0.72rem;
+  color: var(--p-red-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 
 .file-item-actions {
@@ -192,6 +207,41 @@
 
 .status-error {
   color: var(--p-red-500);
+}
+
+.status-cancelled {
+  color: var(--p-orange-500);
+}
+
+.status-pill {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 0.16rem 0.45rem;
+  background: color-mix(in srgb, var(--p-surface-400) 20%, transparent);
+  color: var(--p-text-secondary-color);
+
+  &.done {
+    background: color-mix(in srgb, var(--p-green-500) 20%, transparent);
+    color: var(--p-green-600);
+  }
+
+  &.processing {
+    background: color-mix(in srgb, var(--p-primary-color) 20%, transparent);
+    color: var(--p-primary-color);
+  }
+
+  &.error {
+    background: color-mix(in srgb, var(--p-red-500) 20%, transparent);
+    color: var(--p-red-500);
+  }
+
+  &.cancelled {
+    background: color-mix(in srgb, var(--p-orange-500) 20%, transparent);
+    color: var(--p-orange-500);
+  }
 }
 
 .options-panel {
@@ -261,6 +311,93 @@
 .preview-section {
   position: sticky;
   top: 1.5rem;
+}
+
+.preview-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.preview-card {
+  background: color-mix(in srgb, var(--app-panel-bg) 92%, transparent);
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-soft);
+  overflow: hidden;
+}
+
+.preview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--app-border-color);
+
+  h3 {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  span {
+    font-size: 0.74rem;
+    color: var(--p-text-secondary-color);
+  }
+}
+
+.preview-card-body {
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.preview-image {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--app-border-color);
+  background: color-mix(in srgb, var(--app-bg) 84%, transparent);
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.preview-pdf {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 8px;
+  background: var(--app-bg);
+}
+
+.preview-empty-content {
+  min-height: 140px;
+  border: 1px dashed var(--app-border-color);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  color: var(--p-text-secondary-color);
+
+  p {
+    margin: 0;
+    font-size: 0.82rem;
+  }
+}
+
+.preview-excerpt {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  border-radius: 8px;
+  line-height: 1.45;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  background: color-mix(in srgb, var(--app-hover-bg) 75%, transparent);
+}
+
+.preview-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--p-text-secondary-color);
 }
 
 .preview-empty {

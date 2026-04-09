@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from 'electron';
+import { app, dialog, ipcMain, safeStorage } from 'electron';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -30,7 +30,17 @@ const defaultPreferences: SavePreferences = {
 
 let cachedPreferences: SavePreferences | null = null;
 
+interface StoredPreferences {
+    version: 1;
+    algorithm: 'safeStorage' | 'plain';
+    payload: string;
+}
+
 function getPreferencesFilePath(): string {
+    return path.join(app.getPath('userData'), 'utilix-preferences.enc');
+}
+
+function getLegacyPreferencesFilePath(): string {
     return path.join(app.getPath('userData'), 'utilix-preferences.json');
 }
 
@@ -76,6 +86,58 @@ function normalizePreferences(input: Partial<SavePreferences> | null | undefined
     };
 }
 
+function encodeStoredPreferences(preferences: SavePreferences): string {
+    const payloadJson = JSON.stringify(preferences);
+    const canEncrypt = safeStorage.isEncryptionAvailable();
+
+    if (canEncrypt) {
+        const encrypted = safeStorage.encryptString(payloadJson);
+        const stored: StoredPreferences = {
+            version: 1,
+            algorithm: 'safeStorage',
+            payload: encrypted.toString('base64'),
+        };
+        return JSON.stringify(stored);
+    }
+
+    const stored: StoredPreferences = {
+        version: 1,
+        algorithm: 'plain',
+        payload: Buffer.from(payloadJson, 'utf-8').toString('base64'),
+    };
+    return JSON.stringify(stored);
+}
+
+function decodeStoredPreferences(raw: string): SavePreferences {
+    const parsed = JSON.parse(raw) as Partial<StoredPreferences>;
+    const algorithm = parsed.algorithm;
+    const payload = parsed.payload;
+
+    if ((algorithm !== 'safeStorage' && algorithm !== 'plain') || !payload) {
+        throw new Error('Invalid preferences format');
+    }
+
+    if (algorithm === 'safeStorage') {
+        if (!safeStorage.isEncryptionAvailable()) {
+            throw new Error('Encrypted preferences are unavailable on this system session.');
+        }
+
+        const decrypted = safeStorage.decryptString(Buffer.from(payload, 'base64'));
+        const preferences = JSON.parse(decrypted) as Partial<SavePreferences>;
+        return {
+            ...defaultPreferences,
+            ...normalizePreferences(preferences),
+        };
+    }
+
+    const plainText = Buffer.from(payload, 'base64').toString('utf-8');
+    const preferences = JSON.parse(plainText) as Partial<SavePreferences>;
+    return {
+        ...defaultPreferences,
+        ...normalizePreferences(preferences),
+    };
+}
+
 async function loadPreferences(): Promise<SavePreferences> {
     if (cachedPreferences) {
         return cachedPreferences;
@@ -84,13 +146,25 @@ async function loadPreferences(): Promise<SavePreferences> {
     const filePath = getPreferencesFilePath();
     try {
         const raw = await fs.readFile(filePath, 'utf-8');
-        const parsed = JSON.parse(raw) as Partial<SavePreferences>;
-        cachedPreferences = {
-            ...defaultPreferences,
-            ...normalizePreferences(parsed),
-        };
+        cachedPreferences = decodeStoredPreferences(raw);
     } catch {
-        cachedPreferences = { ...defaultPreferences };
+        try {
+            const legacyPath = getLegacyPreferencesFilePath();
+            const legacyRaw = await fs.readFile(legacyPath, 'utf-8');
+            const legacyParsed = JSON.parse(legacyRaw) as Partial<SavePreferences>;
+            const migrated = {
+                ...defaultPreferences,
+                ...normalizePreferences(legacyParsed),
+            };
+
+            await persistPreferences(migrated);
+            cachedPreferences = migrated;
+
+            // Best-effort cleanup of the legacy plaintext file after migration.
+            await fs.rm(legacyPath, { force: true });
+        } catch {
+            cachedPreferences = { ...defaultPreferences };
+        }
     }
 
     return cachedPreferences;
@@ -99,8 +173,9 @@ async function loadPreferences(): Promise<SavePreferences> {
 async function persistPreferences(preferences: SavePreferences): Promise<SavePreferences> {
     cachedPreferences = preferences;
     const filePath = getPreferencesFilePath();
+    const encoded = encodeStoredPreferences(preferences);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify(preferences, null, 2), 'utf-8');
+    await fs.writeFile(filePath, encoded, 'utf-8');
     return preferences;
 }
 

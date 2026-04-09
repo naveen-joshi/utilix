@@ -27,6 +27,66 @@
   color: var(--p-text-secondary-color);
 }
 
+.backend-status {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--p-yellow-500) 35%, transparent);
+  background: color-mix(in srgb, var(--p-yellow-500) 12%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+
+  &.running {
+    border-color: color-mix(in srgb, var(--p-green-500) 35%, transparent);
+    background: color-mix(in srgb, var(--p-green-500) 12%, transparent);
+  }
+}
+
+.status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--p-text-color);
+
+  strong {
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--p-text-secondary-color);
+  }
+
+  small {
+    color: var(--p-red-500);
+  }
+}
+
+.backend-restart {
+  border: 1px solid var(--app-border-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-panel-bg) 86%, transparent);
+  color: var(--p-text-color);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.38rem 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+
+  &:hover:enabled {
+    border-color: var(--p-primary-color);
+    color: var(--p-primary-color);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .pdf-tools-layout {
   display: grid;
   grid-template-columns: 380px 1fr;
@@ -289,6 +349,11 @@
 @media (max-width: 960px) {
   .pdf-tools-layout {
     grid-template-columns: 1fr;
+  }
+
+  .backend-status {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .metadata-grid,

@@ -7,7 +7,9 @@ export interface ElectronAPI {
     pickSaveDirectory: () => Promise<string | null>;
     saveWithPreferences: (options: unknown) => Promise<unknown>;
     fileConvert: (options: unknown) => Promise<unknown>;
+    fileCancelConversion: (jobId: string) => Promise<unknown>;
     fileConversionCapabilities: () => Promise<unknown>;
+    filePreview: (filePath: string, category?: string) => Promise<unknown>;
     imageResize: (options: unknown) => Promise<unknown>;
     imageConvert: (options: unknown) => Promise<unknown>;
     imageCrop: (options: unknown) => Promise<unknown>;
@@ -23,8 +25,17 @@ export interface ElectronAPI {
     pdfRotatePages: (options: unknown) => Promise<unknown>;
     pdfDeletePages: (options: unknown) => Promise<unknown>;
     pdfUpdateMetadata: (options: unknown) => Promise<unknown>;
-    pdfGetMetadata: (filePath: string) => Promise<unknown>;
-    pdfGeneratePreview: (filePath: string, pageNumber: number) => Promise<unknown>;
+    pdfGetMetadata: (filePath: string, password?: string) => Promise<unknown>;
+    pdfGeneratePreview: (filePath: string, pageNumber: number, password?: string) => Promise<unknown>;
+    pdfEncrypt: (options: unknown) => Promise<unknown>;
+    pdfDecrypt: (options: unknown) => Promise<unknown>;
+    pdfWatermarkText: (options: unknown) => Promise<unknown>;
+    pdfBackendStatus: () => Promise<unknown>;
+    pdfBackendRestart: () => Promise<unknown>;
+    videoConvert: (options: unknown) => Promise<unknown>;
+    fileCopyTo: (sourcePath: string, destPath: string) => Promise<void>;
+    getLocalVideoUrl: (filePath: string) => string;
+    onVideoProgress: (callback: (data: { percent: number | undefined; timemark: string; currentKbps: number | undefined }) => void) => (() => void);
     showSaveDialog: (options: unknown) => Promise<unknown>;
     showOpenDialog: (options: unknown) => Promise<unknown>;
     saveFile: (filePath: string, data: ArrayBuffer) => Promise<void>;
@@ -38,7 +49,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pickSaveDirectory: () => ipcRenderer.invoke('settings:pick-save-directory'),
     saveWithPreferences: (options: unknown) => ipcRenderer.invoke('file:save-with-preferences', options),
     fileConvert: (options: unknown) => ipcRenderer.invoke('file:convert', options),
+    fileCancelConversion: (jobId: string) => ipcRenderer.invoke('file:cancel-conversion', jobId),
     fileConversionCapabilities: () => ipcRenderer.invoke('file:conversion-capabilities'),
+    filePreview: (filePath: string, category?: string) => ipcRenderer.invoke('file:preview', filePath, category),
     imageResize: (options: unknown) => ipcRenderer.invoke('image:resize', options),
     imageConvert: (options: unknown) => ipcRenderer.invoke('image:convert', options),
     imageCrop: (options: unknown) => ipcRenderer.invoke('image:crop', options),
@@ -56,10 +69,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pdfRotatePages: (options: unknown) => ipcRenderer.invoke('pdf:rotate-pages', options),
     pdfDeletePages: (options: unknown) => ipcRenderer.invoke('pdf:delete-pages', options),
     pdfUpdateMetadata: (options: unknown) => ipcRenderer.invoke('pdf:update-metadata', options),
-    pdfGetMetadata: (filePath: string) => ipcRenderer.invoke('pdf:get-metadata', filePath),
-    pdfGeneratePreview: (filePath: string, pageNumber: number) =>
-        ipcRenderer.invoke('pdf:generate-preview', filePath, pageNumber),
+    pdfGetMetadata: (filePath: string, password?: string) => ipcRenderer.invoke('pdf:get-metadata', filePath, password),
+    pdfGeneratePreview: (filePath: string, pageNumber: number, password?: string) =>
+        ipcRenderer.invoke('pdf:generate-preview', filePath, pageNumber, password),
+    pdfEncrypt: (options: unknown) => ipcRenderer.invoke('pdf:encrypt', options),
+    pdfDecrypt: (options: unknown) => ipcRenderer.invoke('pdf:decrypt', options),
+    pdfWatermarkText: (options: unknown) => ipcRenderer.invoke('pdf:watermark-text', options),
+    pdfBackendStatus: () => ipcRenderer.invoke('pdf-backend:status'),
+    pdfBackendRestart: () => ipcRenderer.invoke('pdf-backend:restart'),
 
+    videoConvert: (options: unknown) => ipcRenderer.invoke('video:convert', options),
+    fileCopyTo: (sourcePath: string, destPath: string) => ipcRenderer.invoke('file:copy-to', sourcePath, destPath),
+    getLocalVideoUrl: (filePath: string) => {
+        const normalized = filePath.replace(/\\/g, '/');
+        return `utilix-media://${normalized}`;
+    },
+    onVideoProgress: (callback) => {
+        type ProgressData = { percent: number | undefined; timemark: string; currentKbps: number | undefined };
+        const listener = (_: Electron.IpcRendererEvent, data: ProgressData) => callback(data);
+        ipcRenderer.on('video:progress', listener);
+        return () => ipcRenderer.removeListener('video:progress', listener);
+    },
     showSaveDialog: (options: unknown) => ipcRenderer.invoke('dialog:save', options),
     showOpenDialog: (options: unknown) => ipcRenderer.invoke('dialog:open', options),
     saveFile: (filePath: string, data: ArrayBuffer) =>

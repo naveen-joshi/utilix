@@ -6,10 +6,11 @@ import { PDFParse } from 'pdf-parse';
 import sharp from 'sharp';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
+import { cancelVideoConversion, convertVideoFile, videoFormats } from './video-service';
+import { createScopedTempDir, isManagedTempPath, removeManagedTempPath } from './temp-file-manager';
 
-type ConversionStrategy = 'sharp' | 'pdf-lib' | 'libreoffice' | 'copy' | 'local';
-type ConversionCategory = 'image' | 'pdf' | 'document' | 'spreadsheet' | 'presentation' | 'text' | 'unknown';
+type ConversionStrategy = 'sharp' | 'pdf-lib' | 'libreoffice' | 'copy' | 'local' | 'ffmpeg';
+type ConversionCategory = 'image' | 'pdf' | 'document' | 'spreadsheet' | 'presentation' | 'text' | 'video' | 'unknown';
 type RasterFormat = 'jpeg' | 'png' | 'webp' | 'gif' | 'avif';
 
 const execFileAsync = promisify(execFile);
@@ -27,6 +28,7 @@ export interface FileConvertOptions {
     targetFormat: string;
     quality?: number;
     outputPath?: string;
+    jobId?: string;
 }
 
 export interface FileConvertResult {
@@ -45,6 +47,16 @@ export interface FileConversionCapabilities {
     libreOfficeAvailable: boolean;
     libreOfficePath?: string;
     message: string;
+}
+
+export interface FilePreviewResult {
+    success: boolean;
+    category: ConversionCategory;
+    sourceFormat: string;
+    thumbnailBase64?: string;
+    excerpt?: string;
+    pageCount?: number;
+    message?: string;
 }
 
 function normalizeFormat(format: string): string {
@@ -91,6 +103,10 @@ function getCategory(format: string): ConversionCategory {
 
     if (textFormats.has(format)) {
         return 'text';
+    }
+
+    if (videoFormats.has(format)) {
+        return 'video';
     }
 
     return 'unknown';
@@ -174,6 +190,13 @@ function getLocalSupportedTargets(category: ConversionCategory, sourceFormat: st
 
     if (category === 'text') {
         for (const format of ['txt', 'html', 'pdf']) {
+            targets.add(format);
+        }
+        return targets;
+    }
+
+    if (category === 'video') {
+        for (const format of ['mp4', 'webm', 'mkv', 'mov', 'avi', 'mp3', 'gif']) {
             targets.add(format);
         }
         return targets;
@@ -312,15 +335,26 @@ async function extractPdfText(filePath: string): Promise<string> {
     }
 }
 
-async function convertPdfToText(filePath: string): Promise<Buffer> {
-    const text = await extractPdfText(filePath);
-    return Buffer.from(text, 'utf-8');
-}
-
-async function convertPdfToRaster(filePath: string, target: 'png' | 'jpeg', quality: number): Promise<Buffer> {
-    const parser = new PDFParse({ data: await fs.readFile(filePath) });
+async function extractPdfTextFromBuffer(pdfBuffer: Uint8Array): Promise<string> {
+    const parser = new PDFParse({ data: pdfBuffer });
 
     try {
+        const result = await parser.getText();
+        return result.text ?? '';
+    } finally {
+        await parser.destroy();
+    }
+}
+
+async function renderPdfFirstPageFromBuffer(
+    pdfBuffer: Uint8Array,
+    target: 'png' | 'jpeg',
+    quality: number
+): Promise<{ imageBuffer: Buffer; pageCount: number }> {
+    const parser = new PDFParse({ data: pdfBuffer });
+
+    try {
+        const info = await parser.getInfo();
         const screenshots = await parser.getScreenshot({
             first: 1,
             imageDataUrl: false,
@@ -334,13 +368,144 @@ async function convertPdfToRaster(filePath: string, target: 'png' | 'jpeg', qual
 
         const png = Buffer.from(page.data);
         if (target === 'png') {
-            return png;
+            return {
+                imageBuffer: png,
+                pageCount: info.total ?? 1,
+            };
         }
 
-        return sharp(png).jpeg({ quality, mozjpeg: true }).toBuffer();
+        const jpeg = await sharp(png).jpeg({ quality, mozjpeg: true }).toBuffer();
+        return {
+            imageBuffer: jpeg,
+            pageCount: info.total ?? 1,
+        };
     } finally {
         await parser.destroy();
     }
+}
+
+async function convertPdfToText(filePath: string): Promise<Buffer> {
+    const text = await extractPdfText(filePath);
+    return Buffer.from(text, 'utf-8');
+}
+
+async function convertPdfToRaster(filePath: string, target: 'png' | 'jpeg', quality: number): Promise<Buffer> {
+    const pdfBuffer = await fs.readFile(filePath);
+    const rendered = await renderPdfFirstPageFromBuffer(pdfBuffer, target, quality);
+    return rendered.imageBuffer;
+}
+
+function truncateExcerpt(text: string, maxLength = 420): string {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+        return '';
+    }
+
+    if (normalized.length <= maxLength) {
+        return normalized;
+    }
+
+    return `${normalized.slice(0, maxLength)}...`;
+}
+
+async function generateFilePreview(filePath: string, categoryHint?: string): Promise<FilePreviewResult> {
+    ensurePath(filePath);
+
+    const sourceFormat = getFileFormat(filePath);
+    const hintedCategory = (categoryHint ?? '').toLowerCase() as ConversionCategory;
+    const category = ['image', 'pdf', 'document', 'spreadsheet', 'presentation', 'text', 'video'].includes(hintedCategory)
+        ? hintedCategory
+        : getCategory(sourceFormat);
+
+    if (category === 'image') {
+        const thumbnailBuffer = await sharp(filePath)
+            .rotate()
+            .resize({ width: 560, height: 360, fit: 'inside', withoutEnlargement: true })
+            .png()
+            .toBuffer();
+
+        return {
+            success: true,
+            category,
+            sourceFormat,
+            thumbnailBase64: thumbnailBuffer.toString('base64'),
+            message: 'Image preview generated.',
+        };
+    }
+
+    if (category === 'pdf') {
+        const pdfBuffer = await fs.readFile(filePath);
+        const rendered = await renderPdfFirstPageFromBuffer(pdfBuffer, 'png', 85);
+        const excerpt = truncateExcerpt(await extractPdfTextFromBuffer(pdfBuffer));
+
+        return {
+            success: true,
+            category,
+            sourceFormat,
+            thumbnailBase64: rendered.imageBuffer.toString('base64'),
+            excerpt,
+            pageCount: rendered.pageCount,
+            message: 'PDF first-page preview generated.',
+        };
+    }
+
+    if (category === 'text') {
+        const excerpt = truncateExcerpt(await readTextContent(filePath, sourceFormat));
+        return {
+            success: true,
+            category,
+            sourceFormat,
+            excerpt,
+            message: excerpt
+                ? 'Text excerpt extracted.'
+                : 'Text file has no readable preview content.',
+        };
+    }
+
+    if (category === 'document' || category === 'spreadsheet' || category === 'presentation') {
+        try {
+            const converted = await convertWithLibreOffice(filePath, 'pdf');
+            const rendered = await renderPdfFirstPageFromBuffer(converted.buffer, 'png', 85);
+            const excerpt = truncateExcerpt(await extractPdfTextFromBuffer(converted.buffer));
+
+            return {
+                success: true,
+                category,
+                sourceFormat,
+                thumbnailBase64: rendered.imageBuffer.toString('base64'),
+                excerpt,
+                pageCount: rendered.pageCount,
+                message: 'Office document first page preview generated.',
+            };
+        } catch (error) {
+            const message = error instanceof Error
+                ? error.message
+                : 'Could not generate office preview.';
+
+            return {
+                success: false,
+                category,
+                sourceFormat,
+                message,
+            };
+        }
+    }
+
+    if (category === 'video') {
+        return {
+            success: true,
+            category,
+            sourceFormat,
+            message: 'Video preview thumbnail is not generated yet. Conversion is still supported.',
+        };
+    }
+
+    return {
+        success: false,
+        category: 'unknown',
+        sourceFormat,
+        message: 'Preview is unavailable for this file type.',
+    };
 }
 
 async function readTextContent(filePath: string, sourceFormat: string): Promise<string> {
@@ -450,7 +615,7 @@ async function convertTextToPdf(filePath: string, sourceFormat: string): Promise
 
 async function convertWithLibreOffice(filePath: string, targetFormat: string): Promise<{ buffer: Buffer; outputFormat: string }> {
     const command = await resolveLibreOfficeCommand();
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'utilix-convert-'));
+    const tempDir = await createScopedTempDir('convert');
     const baseName = path.parse(filePath).name.toLowerCase();
 
     try {
@@ -487,7 +652,7 @@ async function convertWithLibreOffice(filePath: string, targetFormat: string): P
 
         return { buffer, outputFormat };
     } finally {
-        await fs.rm(tempDir, { recursive: true, force: true });
+        await removeManagedTempPath(tempDir);
     }
 }
 
@@ -555,6 +720,23 @@ async function convertFile(options: FileConvertOptions): Promise<FileConvertResu
     } else if (sourceCategory === 'text' && targetFormat === 'pdf') {
         outputBuffer = await convertTextToPdf(options.filePath, sourceFormat);
         strategy = 'local';
+    } else if (sourceCategory === 'video') {
+        const videoResult = await convertVideoFile({
+            filePath: options.filePath,
+            targetFormat,
+            quality,
+            jobId: options.jobId,
+        });
+        return {
+            success: videoResult.success,
+            outputPath: videoResult.outputPath,
+            buffer: videoResult.buffer,
+            originalSize: videoResult.originalSize,
+            newSize: videoResult.newSize,
+            sourceFormat: videoResult.sourceFormat,
+            targetFormat: videoResult.targetFormat,
+            strategy: videoResult.strategy,
+        };
     } else {
         try {
             const converted = await convertWithLibreOffice(options.filePath, targetFormat);
@@ -596,7 +778,33 @@ export function registerFileConversionHandlers(): void {
         return convertFile(options);
     });
 
+    ipcMain.handle('file:cancel-conversion', async (_event, jobId: string) => {
+        const cancelled = cancelVideoConversion(jobId);
+        return { cancelled };
+    });
+
     ipcMain.handle('file:conversion-capabilities', async () => {
         return getCapabilities();
+    });
+
+    ipcMain.handle('file:preview', async (_event, filePath: string, category?: string) => {
+        return generateFilePreview(filePath, category);
+    });
+
+    ipcMain.handle('file:copy-to', async (_event, sourcePath: string, destPath: string) => {
+        // Security: only allow copying files from the app-managed temp workspace.
+        const normalizedSource = path.normalize(sourcePath);
+        if (!isManagedTempPath(normalizedSource)) {
+            throw new Error('Source must be a temporary file managed by this application.');
+        }
+
+        await fs.copyFile(normalizedSource, destPath);
+
+        // Best-effort cleanup of the temp directory after successful copy
+        try {
+            await removeManagedTempPath(path.dirname(normalizedSource));
+        } catch {
+            // Ignore cleanup errors
+        }
     });
 }

@@ -27,6 +27,7 @@ export class Layout {
         { label: 'File Resize', icon: 'pi pi-arrows-h', route: '/resize' },
         { label: 'Image Tools', icon: 'pi pi-images', route: '/image-tools' },
         { label: 'File Convert', icon: 'pi pi-sync', route: '/convert' },
+        { label: 'Video Tools', icon: 'pi pi-video', route: '/video' },
         { label: 'PDF Tools', icon: 'pi pi-file-edit', route: '/pdf-tools' },
         { label: 'Settings', icon: 'pi pi-cog', route: '/settings' },
     ];
