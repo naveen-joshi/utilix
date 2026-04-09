@@ -9,8 +9,8 @@
     "build": "ng build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "electron:dev": "concurrently \"ng serve\" \"wait-on http://localhost:4200 && npm run build:electron && electron .\"",
-    "electron:build": "ng build --configuration production && npm run build:electron && electron-builder",
-    "electron:build:win": "ng build --configuration production && npm run build:electron && electron-builder --win nsis --config.win.signAndEditExecutable=false",
+    "electron:build": "ng build --configuration production && npm run build:electron && electron-builder --publish never",
+    "electron:build:win": "ng build --configuration production && npm run build:electron && electron-builder --win nsis --config.win.signAndEditExecutable=false --publish never",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
